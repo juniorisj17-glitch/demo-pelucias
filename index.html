@@ -19,6 +19,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet (mapa) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin>
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin></script>
+
     <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -33,7 +38,7 @@
         </a>
         <nav class="nav" id="nav-main">
             <a href="#home" data-route="home">Inicio</a>
-            <a href="#maquinas" data-route="maquinas">Maquinas</a>
+            <a href="#mapa" data-route="mapa">Mapa</a>
             <a href="#galeria" data-route="galeria">Ganhadores</a>
             <a href="#como-funciona" data-route="como-funciona">Como funciona</a>
         </nav>
@@ -66,7 +71,7 @@
                     <p>Rede Clube das Gruas: gruas com pelucias raras espalhadas por shoppings. Cadastre-se gratis, jogue por R$ 5,00, e quando capturar — voce vira manchete da nossa galeria publica. Ja entregamos <strong id="hero-stat-prizes">centenas</strong> de premios.</p>
                     <div class="hero-actions">
                         <a href="#cadastro" data-route="cadastro" class="btn btn-primary btn-lg">Cadastrar gratis 🚀</a>
-                        <a href="#maquinas" data-route="maquinas" class="btn btn-ghost btn-lg">Ver maquinas →</a>
+                        <a href="#mapa" data-route="mapa" class="btn btn-ghost btn-lg">Ver no mapa →</a>
                     </div>
                     <div class="hero-badges">
                         <span class="badge">PIX em 2s</span>
@@ -110,15 +115,28 @@
             </section>
         </section>
 
-        <!-- MAQUINAS -->
-        <section class="route hidden" id="route-maquinas">
+        <!-- MAPA DE MAQUINAS -->
+        <section class="route hidden" id="route-mapa">
             <div class="page-head">
-                <span class="eyebrow">🎰 Catalogo</span>
-                <h1>Nossas maquinas</h1>
-                <p>Cada maquina tem premios diferentes. Lendarios e exclusivos sao mais raros — corra antes que outro pegue.</p>
+                <span class="eyebrow">🗺️ Onde jogar</span>
+                <h1>Mapa das gruas</h1>
+                <p>Toque numa grua pra ver detalhes: status, endereco, ursinhos raros disponiveis. Verde = online, vermelho = offline, cinza = aguardando.</p>
             </div>
-            <div class="featured-grid" id="all-featured-grid">
-                <div class="loading">carregando…</div>
+
+            <div class="map-stage">
+                <div id="map-container"></div>
+                <div class="map-legend" aria-label="Legenda do mapa">
+                    <span class="legend-item"><span class="legend-dot online"></span> Online</span>
+                    <span class="legend-item"><span class="legend-dot offline"></span> Offline</span>
+                    <span class="legend-item"><span class="legend-dot pending"></span> Em breve</span>
+                </div>
+                <div class="map-overlay hidden" id="map-overlay">
+                    <span aria-hidden="true">🧸</span>
+                    <span>Pegando localizacoes…</span>
+                </div>
+                <div class="map-demo-banner hidden" id="map-demo-banner">
+                    📍 Mostrando localizacoes de demonstracao. Em breve, gruas reais.
+                </div>
             </div>
         </section>
 
@@ -348,9 +366,9 @@
             <span class="bn-icon" aria-hidden="true">🏠</span>
             <span class="bn-label">Inicio</span>
         </a>
-        <a href="#maquinas" data-route="maquinas">
-            <span class="bn-icon" aria-hidden="true">🎰</span>
-            <span class="bn-label">Maquinas</span>
+        <a href="#mapa" data-route="mapa">
+            <span class="bn-icon" aria-hidden="true">🗺️</span>
+            <span class="bn-label">Mapa</span>
         </a>
         <a href="#galeria" data-route="galeria">
             <span class="bn-icon" aria-hidden="true">🏆</span>

@@ -83,6 +83,7 @@ const CONFIG = {
 - 🟡 **HTTPS pendente** — depende do A record (certbot automatico apos propagacao). Service Worker so registra em HTTPS (Chrome/Firefox); funciona em localhost mas no acesso por IP HTTP nao instala — apos certbot a PWA fica completa.
 - ✅ **CORS na FreePix API resolvido (03/05/2026 17:38, Ivo):** `api.freepix.net.br` agora reflete origin dinamicamente (`access-control-allow-origin: <origin>`), `allow-credentials: true`, `allow-methods: GET, POST, PUT, PATCH, DELETE, OPTIONS`, `allow-headers: authorization`, `max-age: 600`, header `vary: Origin`. Stats/featured/gallery e `bridge/exchange` validados via curl. Site no preview consumiu API end-to-end: 12 premios, 5 raros, 8 nas ultimas 24h, 2 maquinas, 8 cards na galeria.
 - ✅ **Google OAuth backend pronto:** `/v1/auth/google/start` retorna 302 pra `accounts.google.com/o/oauth2/v2/auth` com `client_id=852198674773-...apps.googleusercontent.com` configurado. Falta apenas teste end-to-end manual no browser real (preview tool bloqueia navegacao top-level por JS).
+- ✅ **Mapa de gruas (03/05/2026 17:55):** rota `#mapa` substitui `#maquinas` na bottom-nav e topbar. Leaflet 1.9.4 via CDN unpkg (com SRI integrity), tiles OpenStreetMap (sem chave/billing), DivIcon customizado (pin gota com emoji 🎰, cores verde/vermelho/cinza por status), popup com `name + status badge + endereco + premio raro disponivel`. `loadMap()` faz fetch paralelo `/v1/map/points?tenant_key=pelucias-demo&mappable_only=true` + `/v1/claw/featured?...&limit=50` e cruza por `device_id`. **Fallback:** se API retornar 0 pontos (estado atual — tenant nao tem `OperationalPoint` cadastrado), exibe 5 pontos demo (Shopping Iguatemi SP/POA, Morumbi, Center Norte, BarraShopping RJ) com banner dourado "📍 Mostrando localizacoes de demonstracao". Auto-fitBounds, scrollWheelZoom desabilitado (UX mobile), `invalidateSize()` ao trocar de viewport. SW cache version bumped v1 → v2 pra forçar invalidacao em prod.
 - 🟡 Modulo `wallet_interop` (creditos cross-tenant) planejado para Sessao 9 da FreePix — sera o diferencial do Clube das Gruas (cliente compra credito no operador A e usa no operador B).
 
 ## Sessao ativa
@@ -93,8 +94,47 @@ const CONFIG = {
 
 ## Pendencias para a proxima sessao
 
-1. **Teste end-to-end manual do Google OAuth no browser real** — abrir http://216.238.116.255:8081/#cadastro, clicar "Continuar com Google", fazer login com conta Google real, verificar se volta logado em `#conta`. (Backend, CORS e codigo do front ja validados; falta confirmar que o usuario chega na conta de fato.)
-2. **Criar A record `clubedasgruas.com.br` → 216.238.116.255** no registro.br (acao do Ivo).
+### Painel admin do operador (Ivo pediu — escopo grande, depende de backend novo)
+
+**Visao do Ivo (resumo):** "fulano tem 10 maquinas em 4 lojas, pode delegar usuarios pra operar; controle de status, creditos remotos, mapa de horarios ligada/desligada, controle financeiro de entradas (PIX/credito/moeda/dinheiro por pulso ESP32), verificar caixa fisico, repor estoque ursos."
+
+**Pre-requisitos no backend `freepix` (provavelmente 2-3 sessoes):**
+
+1. **Multi-tenancy hierarquico operador → loja → maquina → operador delegado**
+   - `TenantMembership` ja existe (role: admin/end_user/manager). Falta um nivel intermediario tipo "merchant_operator" com escopo por maquina especifica (`Merchant` ja existe + `MerchantMembership`).
+   - Endpoint `POST /v1/merchants/{id}/operators/grant` pra delegar acesso a uma maquina especifica.
+2. **Ledger financeiro com origem por pulso (PIX vs credito vs moeda vs dinheiro)**
+   - `WalletEntry` ja e idempotente, mas precisa campo `source_kind` (`pix` | `card_credit` | `coin` | `bill` | `wallet_credit`) e `source_device_id`.
+   - Cada pulso da ESP32 com tipo de origem vira um `WalletEntry` com `source_kind` correspondente.
+3. **Sessao 8 da FreePix (ja planejada): MQTT consumer + ESP32 firmware**
+   - Worker async subscrevendo `freepix/{cp_code}/event/{coin,bill,pix,card}` e roteando pra `wallet_service.credit()` ja com `source_kind`.
+   - Firmware ESP32 publica pulso por sensor (acumulador moedas, validador notas, ack PIX).
+4. **Comandos remotos pra claw machines (analogo ao OCPP RemoteStart):**
+   - Endpoint `POST /v1/claw/machines/{device_id}/commands` com `kind=give_credit|on|off|reset`.
+   - Worker MQTT publica em `freepix/{cp_code}/cmd/{kind}`.
+5. **Caixa fisico (CashRegister + reconciliacao):**
+   - Modelo `CashCount` (snapshot de quanto tem na maquina em moeda + cedula, com timestamp e operador que contou).
+   - Endpoint `POST /v1/claw/machines/{device_id}/cash-count` pra registrar contagem.
+   - Diff entre `CashCount` e soma de `WalletEntry source_kind in (coin, bill)` desde a contagem anterior.
+6. **OperatingHours por maquina (horarios abertura/fechamento):**
+   - Modelo `MachineSchedule` com `device_id`, `weekday`, `open_time`, `close_time`.
+   - Endpoint CRUD + integracao com comandos remotos (auto-off fora do horario).
+   - **Reuso possivel:** o modulo `scheduling` da Sessao 5 ja tem `Schedule`/`ScheduleSlot` mas pra reservas, nao pra horario operacional. Pode-se estender ou criar paralelo.
+
+**Frontend (depois do backend):**
+
+- Login admin via `/v1/auth/login` + check `TenantMembership.role in (admin, manager)` no `/v1/auth/me`. Login social Google ja funciona — admin podera entrar com Google se promover a conta dele a admin.
+- Promocao a admin: `POST /v1/auth/admin/grant-tenant-role` ja existe em `platform_auth.py:896` (precisa master secret pra cross-tenant). Ivo pode usar pra promover a conta dele do `pelucias-demo`.
+- Site separado ou rota protegida `#admin` no proprio `clubedasgruas.com.br` — decisao quando comecar.
+- Sub-rotas: dashboard (KPIs financeiros), maquinas (lista com drilldown: status / estoque / pulso / caixa / horario), lojas, financeiro (extrato com filtro por origem PIX/credito/moeda/dinheiro), usuarios (delegar acesso por maquina), modulos FreePix ativos.
+
+**Acao concreta possivel hoje (sem todo o backend novo):** versao MVP do admin so com o que ja existe — login + lista de maquinas (`/v1/map/points?kind=device`) + estoque por maquina (`/v1/claw/machines/{id}/inventory`) + galeria de wins + carteira do tenant (`/v1/wallet/*`). Mas o "controle financeiro por origem" e "creditos remotos" o "caixa fisico" ficam pendentes.
+
+### Outras pendencias
+
+1. **Teste end-to-end manual do Google OAuth no browser real** — http://216.238.116.255:8081/#cadastro → "Continuar com Google" → login real → verificar volta em `#conta`.
+2. **Cadastrar 5 maquinas reais no `pelucias-demo`** via `POST /v1/operational-points` com tenant secret (substitui o fallback demo do mapa por dados reais). Pode usar o painel admin existente da FreePix em `/admin/operational-points` se exposto.
+3. **Criar A record `clubedasgruas.com.br` → 216.238.116.255** no registro.br (acao do Ivo).
 3. **Rodar certbot** apos DNS propagar:
    ```bash
    ssh veiculos-vps 'certbot --nginx -d clubedasgruas.com.br -d www.clubedasgruas.com.br --non-interactive --agree-tos -m juniorisj17@gmail.com --redirect'
@@ -136,5 +176,6 @@ curl -s -o /dev/null -w "%{http_code}\n" https://autopasso.com.br/   # validar a
 - **03/05/2026 16:50** - Claude Code - Rebrand Capturei → **Clube das Gruas** (commit `65098e8`). Nginx aceita `clubedasgruas.com.br` + `www` + `pelucias.freepix.net.br`. Validado `autopasso.com.br` intacto.
 - **03/05/2026 17:00** - Claude Code - Adicionado listener nginx em **porta 8081** (isolada do autopasso na :80). ufw allow 8081/tcp. Acesso publico via `http://216.238.116.255:8081/` (sem DNS). Latencia 92ms.
 - **03/05/2026 17:15** - Claude Code - Estrutura padrao do grupo aplicada: `AGENTS.md`/`CLAUDE.md`/`.secrets/servers.md` criados, `.gitignore` ganhou `.secrets/`, `D:\_CENTRAL\PROMPTS_INICIAIS.md` ganhou prompt #14, `D:\_CENTRAL\MASTER.md` registra o projeto.
+- **03/05/2026 17:55** - Claude Code - **Mapa interativo das gruas (rota #mapa).** Substituiu "Maquinas" na bottom-nav e topbar (decisao do Ivo: opcao c — mapa serve como catalogo, com lista de maquinas dentro do popup). Leaflet 1.9.4 via unpkg CDN com SRI integrity, tiles OpenStreetMap (sem chave). DivIcon customizado pin gota com emoji 🎰, cores verde/vermelho/cinza por status. Popup mostra `name + status badge + endereco + premio raro disponivel` (cruzando `/v1/map/points` com `/v1/claw/featured` por device_id). Fallback elegante: como tenant `pelucias-demo` ainda nao tem `OperationalPoint` cadastrado, exibe 5 pontos demo (Iguatemi SP/POA, Morumbi, Center Norte, BarraShopping RJ) com banner dourado "Mostrando localizacoes de demonstracao". Auto-fitBounds, scrollWheelZoom desabilitado pra UX mobile, `invalidateSize()` ao trocar viewport. `sw.js` cache version v1 → v2 pra forçar invalidacao em prod. Validado no preview mobile (5 markers, 3 online + 1 offline + 1 pending) e tablet (mapa 740x701, top-nav ativo). Deploy via tar/ssh: demo 200, autopasso 200 (intacto), Leaflet+rota+SW v2 confirmados em prod. **Painel admin (escopo grande pedido pelo Ivo) registrado em detalhes nas pendencias** — depende de varios modelos novos no backend (multi-tenancy hierarquico, ledger por origem, MQTT pulso, comandos remotos, caixa fisico, horarios).
 - **03/05/2026 17:42** - Claude Code - **CORS validado na FreePix API + Google OAuth backend confirmado.** Ivo liberou CORS no FastAPI da freepix; validado via curl com 3 origins (localhost:5500, 216.238.116.255:8081, e error response do bridge_exchange) — todos refletem `access-control-allow-origin` corretamente, `allow-credentials: true`, `vary: Origin`. Site no preview consumiu API end-to-end: 12 premios, 5 raros, 8 ultimas 24h, 2 maquinas, 8 cards galeria, ZERO erros no console (antes 12+ TypeError). `/v1/auth/google/start` retorna 302 pra Google com client_id configurado — login social pronto, falta so teste manual no browser do Ivo (preview tool nao permite navegacao top-level por JS pra terceiros). Sem mudanca de codigo, so doc.
 - **03/05/2026 17:35** - Claude Code - **PWA mobile-first + login social.** 3 arquivos novos: `manifest.json` (display:standalone, theme #ff5ea1, icons[svg maskable]), `assets/icon.svg` (ursinho desenhado em paths SVG, gradient rosa→lavanda→dourado), `sw.js` (cache-first do shell, network-only pra api.freepix). `assets/style.css` reescrito mobile-first (605→721 linhas) com bottom-nav fixa de 4 abas, tap targets ≥44px, inputs 16px (anti-zoom iOS), safe-area-inset-bottom. `index.html` ganhou meta PWA/iOS, bottom-nav, modal "Esqueci minha senha", install-prompt, e em ambas as paginas auth: 3 botoes sociais (Google funcional + Facebook/Apple disabled "Em breve") + divider "ou" + form email+senha mantido. `assets/app.js`: handler `handleBridgeToken()` (le `?token=` do callback Google e troca via `/v1/auth/bridge/exchange`), `startGoogleOAuth()` (redirect a `/v1/auth/google/start?tenant_key=pelucias-demo&site_slug=clubedasgruas&return_url=...`), modal esqueci senha (POST `/v1/auth/password/forgot`), `registerServiceWorker()` + `setupInstallPrompt()` (beforeinstallprompt). Validado mobile (375x812) + tablet (768x1024): bottom-nav some no tablet, top-nav reaparece, modal abre/fecha, URLs OAuth corretas. Deploy via tar `tar -C /d/FreePix/demo_pelucias --exclude=./.git --exclude=./.claude --exclude=./.secrets -czf - . | ssh veiculos-vps`. Smoke: demo 200, autopasso 200 (intacto), manifest/sw/icon servidos pelo nginx. **Problema descoberto e flagged pra Sessao seguinte:** `api.freepix.net.br` nao tem CORS — todas chamadas do front falham silenciosamente, requer middleware CORS no FastAPI da freepix.

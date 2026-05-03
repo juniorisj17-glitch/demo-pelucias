@@ -96,8 +96,8 @@ function showRoute(name) {
         loadStats();
         loadFeatured("featured-grid", 6);
         loadGallery("home-gallery", 8);
-    } else if (name === "maquinas") {
-        loadFeatured("all-featured-grid", 50);
+    } else if (name === "mapa") {
+        loadMap();
     } else if (name === "galeria") {
         currentGalleryOffset = 0;
         loadGallery("full-gallery", 24, false);
@@ -175,6 +175,138 @@ async function loadFeatured(targetId, limit) {
         target.innerHTML = '<div class="empty">Erro carregando maquinas.</div>';
         console.warn("featured failed", e);
     }
+}
+
+// ============================================================
+// MAP — Leaflet com fallback de pontos demo
+// ============================================================
+const DEMO_POINTS = [
+    { name: "Shopping Iguatemi SP", latitude: -23.5891, longitude: -46.6841, status: "online",
+      address: "Av. Brigadeiro Faria Lima, 2232 — Jardim Paulistano, SP", external_ref: null },
+    { name: "Shopping Morumbi", latitude: -23.6234, longitude: -46.6987, status: "offline",
+      address: "Av. Roque Petroni Junior, 1089 — Brooklin, SP", external_ref: null },
+    { name: "Shopping Iguatemi Porto Alegre", latitude: -30.0192, longitude: -51.1855, status: "online",
+      address: "Av. Joao Wallig, 1800 — Passo dArAreia, Porto Alegre/RS", external_ref: null },
+    { name: "Shopping Center Norte", latitude: -23.5096, longitude: -46.6188, status: "pending",
+      address: "Travessa Casalbuono, 120 — Vila Guilherme, SP", external_ref: null },
+    { name: "BarraShopping RJ", latitude: -22.9989, longitude: -43.3597, status: "online",
+      address: "Av. das Americas, 4666 — Barra da Tijuca, RJ", external_ref: null },
+];
+
+let mapInstance = null;
+let mapMarkers = [];
+
+function classifyStatus(p) {
+    if (p.status === "online") return "online";
+    if (p.device_ready === true) return "online";
+    if (p.status === "offline") return "offline";
+    if (p.status === "active" && p.payment_ready === true) return "online";
+    return "pending";
+}
+
+function statusLabel(status) {
+    if (status === "online") return "Online · jogando agora";
+    if (status === "offline") return "Offline";
+    return "Em breve";
+}
+
+async function loadMap() {
+    const overlay = $("#map-overlay");
+    const banner = $("#map-demo-banner");
+    overlay?.classList.remove("hidden");
+
+    // Fetch pontos + featured (pra cruzar premio raro por device_id)
+    let points = [];
+    const featuredByDeviceId = {};
+    try {
+        const [pointsRes, featuredRes] = await Promise.all([
+            apiGet(`/v1/map/points?tenant_key=${CONFIG.TENANT_KEY}&mappable_only=true`),
+            apiGet(`/v1/claw/featured?tenant_key=${CONFIG.TENANT_KEY}&limit=50`).catch(() => ({ machines: [] })),
+        ]);
+        points = pointsRes.points || [];
+        for (const m of (featuredRes.machines || [])) {
+            featuredByDeviceId[m.device_id] = m;
+        }
+    } catch (e) {
+        console.warn("map fetch failed", e);
+    }
+
+    // Fallback: se API nao tem pontos cadastrados, mostra os 5 demo (shoppings BR)
+    let usedDemo = false;
+    if (points.length === 0) {
+        points = DEMO_POINTS;
+        usedDemo = true;
+    }
+    banner?.classList.toggle("hidden", !usedDemo);
+
+    // Espera Leaflet carregar (defer no <head>) — tenta de novo se ainda nao
+    if (typeof L === "undefined") {
+        setTimeout(loadMap, 300);
+        return;
+    }
+
+    // Inicializa o map UMA vez (se chamado de novo, so re-renderiza markers)
+    if (!mapInstance) {
+        mapInstance = L.map("map-container", {
+            zoomControl: true,
+            scrollWheelZoom: false, // evita o user travar no scroll vertical em mobile
+            tap: true,
+        }).setView([-15.78, -47.93], 4);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }).addTo(mapInstance);
+    }
+
+    // Limpa markers anteriores
+    for (const m of mapMarkers) m.remove();
+    mapMarkers = [];
+
+    // Adiciona markers
+    const bounds = [];
+    for (const p of points) {
+        const status = classifyStatus(p);
+        const icon = L.divIcon({
+            className: "",
+            html: `<div class="machine-pin ${status}"><span class="pin-emoji">🎰</span></div>`,
+            iconSize: [36, 36],
+            iconAnchor: [18, 36],
+            popupAnchor: [0, -32],
+        });
+
+        // Cruza com /v1/claw/featured pra mostrar o premio raro disponivel
+        const deviceId = p.external_ref ? parseInt(p.external_ref, 10) : null;
+        const featured = deviceId && featuredByDeviceId[deviceId];
+        const prizeHtml = featured && featured.rare_prize ? `
+            <div class="pop-prize">
+                <span class="pop-prize-emoji">${RARITY_EMOJI[featured.rare_prize.rarity] || "🧸"}</span>
+                <span><strong>${featured.rare_prize.name}</strong> · ${featured.rare_prize.remaining} restante${featured.rare_prize.remaining > 1 ? "s" : ""}</span>
+            </div>` : "";
+
+        const popupHtml = `
+            <div class="popup-machine">
+                <h4>${p.name}</h4>
+                <span class="pop-status ${status}">${statusLabel(status)}</span>
+                ${p.address ? `<div class="pop-address">📍 ${p.address}</div>` : ""}
+                ${prizeHtml}
+            </div>`;
+
+        const marker = L.marker([p.latitude, p.longitude], { icon }).bindPopup(popupHtml);
+        marker.addTo(mapInstance);
+        mapMarkers.push(marker);
+        bounds.push([p.latitude, p.longitude]);
+    }
+
+    if (bounds.length === 1) {
+        mapInstance.setView(bounds[0], 14);
+    } else if (bounds.length > 1) {
+        mapInstance.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    // Recalcula tamanho — necessario quando a rota saiu de hidden ha pouco
+    setTimeout(() => mapInstance?.invalidateSize(), 120);
+
+    overlay?.classList.add("hidden");
 }
 
 // ============================================================

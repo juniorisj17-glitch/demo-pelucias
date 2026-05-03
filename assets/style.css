@@ -798,6 +798,157 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
     line-height: 1;
 }
 
+/* === MAPA DE MAQUINAS (Leaflet) === */
+.map-stage {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 280px);
+    min-height: 360px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 2px solid var(--line);
+    background: #e8e0d3;
+}
+#map-container {
+    width: 100%;
+    height: 100%;
+}
+
+/* Override do Leaflet pra combinar com o resto do site */
+.leaflet-container { font-family: "Inter", sans-serif; background: #e8e0d3; }
+.leaflet-popup-content-wrapper {
+    border-radius: var(--radius-md);
+    border: 2px solid var(--line);
+    box-shadow: var(--shadow-md);
+    padding: 0;
+}
+.leaflet-popup-tip { background: #fff; }
+.leaflet-popup-content {
+    margin: 14px 16px;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    min-width: 200px;
+}
+.popup-machine h4 {
+    font-size: 1.05rem;
+    margin: 0 0 6px;
+    font-family: "Fredoka", sans-serif;
+}
+.popup-machine .pop-status {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+}
+.popup-machine .pop-status.online { background: #dcfce7; color: #15803d; }
+.popup-machine .pop-status.offline { background: #fee2e2; color: #b91c1c; }
+.popup-machine .pop-status.pending { background: #f3f4f6; color: #6b7280; }
+.popup-machine .pop-address {
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin: 4px 0;
+    line-height: 1.35;
+}
+.popup-machine .pop-prize {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-soft);
+    font-size: 0.84rem;
+    color: var(--pink-dark);
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+}
+.popup-machine .pop-prize .pop-prize-emoji { font-size: 18px; }
+
+/* Marker customizado (DivIcon) — pin estilo gota */
+.machine-pin {
+    width: 36px; height: 36px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    border: 3px solid #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.32);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: transform 200ms ease;
+}
+.machine-pin:hover { transform: rotate(-45deg) scale(1.1); }
+.machine-pin .pin-emoji {
+    transform: rotate(45deg);
+    font-size: 17px;
+    line-height: 1;
+}
+.machine-pin.online { background: #22c55e; }
+.machine-pin.offline { background: #ef4444; }
+.machine-pin.pending { background: #9ca3af; }
+
+/* Legenda (canto inferior esquerdo) */
+.map-legend {
+    position: absolute;
+    bottom: 12px; left: 12px;
+    z-index: 500;
+    display: flex; gap: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+}
+.legend-dot.online { background: #22c55e; }
+.legend-dot.offline { background: #ef4444; }
+.legend-dot.pending { background: #9ca3af; }
+
+/* Overlay de loading */
+.map-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 600;
+    display: grid;
+    place-items: center;
+    grid-auto-flow: row;
+    background: rgba(255, 248, 243, 0.92);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: var(--text-secondary);
+    font-weight: 600;
+    gap: 6px;
+    padding: 24px;
+    text-align: center;
+}
+.map-overlay > span:first-child { font-size: 36px; }
+
+/* Banner "demo" (no topo do mapa quando usando dados ficticios) */
+.map-demo-banner {
+    position: absolute;
+    top: 12px; left: 12px; right: 12px;
+    z-index: 500;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--gradient-gold);
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+}
+
 /* ============================================================
  * TABLET (>= 720px)
  * ============================================================ */
