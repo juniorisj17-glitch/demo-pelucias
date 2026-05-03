@@ -1,7 +1,8 @@
-/* === Pelucias by FreePix - SPA consumindo a FreePix API ===
+/* === Clube das Gruas (by FreePix) - SPA consumindo a FreePix API ===
  *
- * Site demo de gruas de pelucia. Single-page app vanilla, routing por hash,
- * consome 100% da API publica https://api.freepix.net.br.
+ * Rede brasileira de gruas de pelucia com creditos cross-tenant.
+ * Single-page app vanilla, routing por hash, consome 100% da API publica
+ * https://api.freepix.net.br.
  *
  * Endpoints usados:
  *   - GET  /v1/claw/stats?tenant_key=pelucias-demo   (publico)
