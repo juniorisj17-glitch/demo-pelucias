@@ -1,4 +1,4 @@
-# Pelucias by FreePix — site demo
+# Capturei by FreePix — site demo
 
 > Site de demonstracao de uma rede de **gruas de pelucia** consumindo 100% da [FreePix API](https://api.freepix.net.br/).
 
@@ -119,7 +119,7 @@ Se for fazer demo pra outro cliente real:
 ```bash
 # 1. Cria tenant novo
 curl -X POST -H "X-Freepix-Master: $MASTER" -H "Content-Type: application/json" \
-  -d '{"tenant_key":"meucliente","name":"Pelucias Cliente X"}' \
+  -d '{"tenant_key":"meucliente","name":"Capturei Cliente X"}' \
   https://api.freepix.net.br/v1/tenants
 
 # 2. Edita assets/app.js -> CONFIG.TENANT_KEY = "meucliente"
@@ -130,4 +130,4 @@ curl -X POST -H "X-Freepix-Master: $MASTER" -H "Content-Type: application/json" 
 
 ---
 
-© 2026 · Pelucias by FreePix · Powered by [api.freepix.net.br](https://api.freepix.net.br)
+© 2026 · Capturei by FreePix · Powered by [api.freepix.net.br](https://api.freepix.net.br)
