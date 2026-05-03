@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pelucias · Ganhe seu urso com PIX</title>
+    <meta name="description" content="Rede de gruas de pelucia com PIX. Ursos lendarios, galeria de ganhadores, cadastro gratis. Powered by FreePix.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+    <!-- TOPBAR -->
+    <header class="topbar">
+        <a href="#home" class="brand">
+            <span class="brand-emoji">🧸</span>
+            <div>
+                <strong>Pelucias</strong>
+                <span class="brand-tag">by FreePix</span>
+            </div>
+        </a>
+        <nav class="nav" id="nav-main">
+            <a href="#home" data-route="home">Inicio</a>
+            <a href="#maquinas" data-route="maquinas">Maquinas</a>
+            <a href="#galeria" data-route="galeria">Ganhadores</a>
+            <a href="#como-funciona" data-route="como-funciona">Como funciona</a>
+        </nav>
+        <div class="nav-actions" id="nav-actions">
+            <a href="#login" class="btn btn-ghost" data-route="login">Entrar</a>
+            <a href="#cadastro" class="btn btn-primary" data-route="cadastro">Cadastrar</a>
+        </div>
+    </header>
+
+    <!-- LIVE STATS BAR -->
+    <div class="stats-bar" id="stats-bar">
+        <span class="stat-item">🎁 <strong id="stat-total">—</strong> premios entregues</span>
+        <span class="stat-divider">·</span>
+        <span class="stat-item">⭐ <strong id="stat-rare">—</strong> raros</span>
+        <span class="stat-divider">·</span>
+        <span class="stat-item">🔥 <strong id="stat-24h">—</strong> nas ultimas 24h</span>
+        <span class="stat-divider">·</span>
+        <span class="stat-item">🎰 <strong id="stat-machines">—</strong> maquinas ativas</span>
+    </div>
+
+    <!-- ===== ROUTES ===== -->
+    <main id="app">
+
+        <!-- HOME / HERO -->
+        <section class="route" id="route-home">
+            <div class="hero">
+                <div class="hero-copy">
+                    <span class="eyebrow">🧸 Pelucias FreePix</span>
+                    <h1>Ganhe seu urso. <span class="grad">Pague com PIX em 2 segundos.</span></h1>
+                    <p>Rede de gruas com pelucias raras todo mes. Cadastre-se gratis, jogue por R$ 5,00, e talvez voce apareca aqui na galeria. Ja entregamos <strong id="hero-stat-prizes">centenas</strong> de premios.</p>
+                    <div class="hero-actions">
+                        <a href="#cadastro" data-route="cadastro" class="btn btn-primary btn-lg">Cadastrar gratis 🚀</a>
+                        <a href="#maquinas" data-route="maquinas" class="btn btn-ghost btn-lg">Ver maquinas →</a>
+                    </div>
+                    <div class="hero-badges">
+                        <span class="badge">PIX em 2s</span>
+                        <span class="badge gold">Ursos lendarios</span>
+                        <span class="badge">Cashback 5%</span>
+                        <span class="badge gold">Galeria publica</span>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="bear-card bear-1">🧸</div>
+                    <div class="bear-card bear-2">🐻</div>
+                    <div class="bear-card bear-3">🦄</div>
+                    <div class="bear-card bear-4">🐱</div>
+                    <div class="bear-card bear-5">⭐</div>
+                </div>
+            </div>
+
+            <!-- FEATURED MACHINES -->
+            <section class="section">
+                <div class="section-head">
+                    <h2>🔥 Maquinas com pelucias raras agora</h2>
+                    <p>Estas maquinas tem ursos raros ou lendarios em estoque <strong>nesse exato momento</strong>. Quando acabar, acabou.</p>
+                </div>
+                <div class="featured-grid" id="featured-grid">
+                    <div class="loading">carregando…</div>
+                </div>
+            </section>
+
+            <!-- RECENT WINS -->
+            <section class="section">
+                <div class="section-head">
+                    <h2>✨ Quem ganhou nas ultimas horas</h2>
+                    <p>Galeria publica em tempo real. Cada premio ganho aparece aqui automaticamente.</p>
+                </div>
+                <div class="gallery-grid" id="home-gallery">
+                    <div class="loading">carregando…</div>
+                </div>
+                <div class="see-more">
+                    <a href="#galeria" data-route="galeria" class="btn btn-ghost">Ver galeria completa →</a>
+                </div>
+            </section>
+        </section>
+
+        <!-- MAQUINAS -->
+        <section class="route hidden" id="route-maquinas">
+            <div class="page-head">
+                <span class="eyebrow">🎰 Catalogo</span>
+                <h1>Nossas maquinas</h1>
+                <p>Cada maquina tem premios diferentes. Lendarios e exclusivos sao mais raros — corra antes que outro pegue.</p>
+            </div>
+            <div class="featured-grid" id="all-featured-grid">
+                <div class="loading">carregando…</div>
+            </div>
+        </section>
+
+        <!-- GALERIA -->
+        <section class="route hidden" id="route-galeria">
+            <div class="page-head">
+                <span class="eyebrow">🏆 Hall da fama</span>
+                <h1>Galeria de ganhadores</h1>
+                <p>Cada premio entregue. Atualizado em tempo real.</p>
+            </div>
+            <div class="gallery-grid" id="full-gallery">
+                <div class="loading">carregando…</div>
+            </div>
+            <div class="see-more">
+                <button class="btn btn-ghost" id="load-more-gallery">Carregar mais ↓</button>
+            </div>
+        </section>
+
+        <!-- COMO FUNCIONA -->
+        <section class="route hidden" id="route-como-funciona">
+            <div class="page-head">
+                <span class="eyebrow">📖 Como funciona</span>
+                <h1>Em 4 passos</h1>
+            </div>
+            <div class="how-grid">
+                <div class="how-card">
+                    <span class="how-num">1</span>
+                    <h3>Cadastre-se gratis</h3>
+                    <p>Email + senha. Sem cartao de credito. Em 30 segundos.</p>
+                </div>
+                <div class="how-card">
+                    <span class="how-num">2</span>
+                    <h3>Adicione saldo via PIX</h3>
+                    <p>Quanto quiser. R$ 5 da pra 1 partida. Saldo nunca expira.</p>
+                </div>
+                <div class="how-card">
+                    <span class="how-num">3</span>
+                    <h3>Jogue na maquina</h3>
+                    <p>Encoste o QR no totem da grua, debita do saldo, e ela e sua por 60s.</p>
+                </div>
+                <div class="how-card">
+                    <span class="how-num">4</span>
+                    <h3>Ganhe e tire foto</h3>
+                    <p>Premio na mao? Tire selfie, envia pelo zap, vai pra galeria publica.</p>
+                </div>
+            </div>
+            <div class="card cashback-call">
+                <h3>💰 Cashback 5%</h3>
+                <p>Toda partida volta 5% como saldo. Quanto mais voce joga, mais saldo gira no proprio sistema. <a href="#cadastro" data-route="cadastro">Cadastre-se</a> e comece.</p>
+            </div>
+        </section>
+
+        <!-- CADASTRO -->
+        <section class="route hidden" id="route-cadastro">
+            <div class="auth-grid">
+                <div class="auth-side">
+                    <span class="eyebrow">🎉 Cadastro gratis</span>
+                    <h1>Voce esta a 30 segundos do <span class="grad">primeiro urso</span>.</h1>
+                    <ul class="auth-perks">
+                        <li>✅ R$ 5,00 de saldo bonus</li>
+                        <li>✅ 5% de cashback automatico</li>
+                        <li>✅ Acesso a 20+ maquinas</li>
+                        <li>✅ Aparece na galeria publica quando ganhar</li>
+                    </ul>
+                </div>
+                <div class="auth-form">
+                    <h2>Criar conta</h2>
+                    <p>Apenas email e senha — sem cartao.</p>
+                    <form id="register-form">
+                        <label>
+                            <span>Email</span>
+                            <input name="email" type="email" required placeholder="seu@email.com">
+                        </label>
+                        <label>
+                            <span>Senha (min. 8 caracteres)</span>
+                            <input name="password" type="password" required minlength="8" placeholder="••••••••">
+                        </label>
+                        <label>
+                            <span>Como deseja aparecer na galeria? (opcional)</span>
+                            <input name="display_name" type="text" placeholder="Joao S.">
+                        </label>
+                        <button type="submit" class="btn btn-primary btn-lg" style="width:100%">Criar conta gratis 🚀</button>
+                    </form>
+                    <div class="auth-switch">
+                        Ja tem conta? <a href="#login" data-route="login">Entrar →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LOGIN -->
+        <section class="route hidden" id="route-login">
+            <div class="auth-grid">
+                <div class="auth-side">
+                    <span class="eyebrow">👋 Bem vindo</span>
+                    <h1>Entre e <span class="grad">veja seu saldo</span>.</h1>
+                    <p>Cada R$ 5 = 1 partida. 5% volta como cashback.</p>
+                </div>
+                <div class="auth-form">
+                    <h2>Entrar</h2>
+                    <form id="login-form">
+                        <label>
+                            <span>Email</span>
+                            <input name="email" type="email" required placeholder="seu@email.com">
+                        </label>
+                        <label>
+                            <span>Senha</span>
+                            <input name="password" type="password" required placeholder="••••••••">
+                        </label>
+                        <button type="submit" class="btn btn-primary btn-lg" style="width:100%">Entrar</button>
+                    </form>
+                    <div class="auth-switch">
+                        Sem conta? <a href="#cadastro" data-route="cadastro">Cadastrar gratis →</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MINHA CONTA -->
+        <section class="route hidden" id="route-conta">
+            <div class="page-head">
+                <span class="eyebrow">👤 Minha conta</span>
+                <h1 id="me-greeting">Ola!</h1>
+                <p id="me-email" class="text-muted"></p>
+            </div>
+            <div class="account-grid">
+                <div class="card balance-card">
+                    <span class="label">Seu saldo</span>
+                    <strong class="balance" id="balance-amount">R$ 0,00</strong>
+                    <p>1 partida = R$ 5,00. Saldo nunca expira.</p>
+                    <button class="btn btn-primary btn-lg" id="btn-add-balance">+ Adicionar saldo (PIX)</button>
+                </div>
+                <div class="card stats-card">
+                    <h3>📊 Sua atividade</h3>
+                    <p class="text-muted">Em breve: total de partidas, premios ganhos, cashback acumulado.</p>
+                </div>
+            </div>
+            <div class="logout-strip">
+                <button class="btn btn-ghost" id="btn-logout">Sair</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div>
+                <strong>🧸 Pelucias by FreePix</strong>
+                <p>Rede de gruas com pelucias. Operada com a plataforma FreePix de autoatendimento.</p>
+            </div>
+            <div>
+                <h4>Demo</h4>
+                <p>Site de demonstracao consumindo 100% da <a href="https://api.freepix.net.br" target="_blank">FreePix API</a>. Codigo aberto.</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© Pelucias FreePix demo · 2026</span>
+            <span>Powered by <a href="https://api.freepix.net.br" target="_blank">FreePix API</a></span>
+        </div>
+    </footer>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script src="assets/app.js"></script>
+</body>
+</html>

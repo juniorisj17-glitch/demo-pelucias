@@ -1,0 +1,16 @@
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Hospedagem
+.vercel/
+.netlify/
+node_modules/
