@@ -1,0 +1,22 @@
+{
+  "name": "Clube das Gruas",
+  "short_name": "Clube das Gruas",
+  "description": "Rede de gruas de pelucia com PIX em 2 segundos. Pegou, ganhou.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#ff5ea1",
+  "background_color": "#fff8f3",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["entertainment", "games"],
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

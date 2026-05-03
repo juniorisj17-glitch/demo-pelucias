@@ -77,9 +77,13 @@ const CONFIG = {
 - ✅ Deployed em `veiculos-vps` em `/var/www/pelucias/` na **porta 8081** (isolada do autopasso na :80).
 - ✅ Nginx aceita `clubedasgruas.com.br` + `www.clubedasgruas.com.br` + `pelucias.freepix.net.br` + qualquer Host na :8081.
 - ✅ Dominio `clubedasgruas.com.br` comprado (03/05/2026, R$ 40/ano).
+- ✅ **PWA mobile-first (03/05/2026 17:30):** site agora e PWA instalavel — `manifest.json`, `assets/icon.svg` (ursinho desenhado em paths SVG, gradient rosa→lavanda→dourado), `sw.js` (cache-first do shell). CSS reescrito mobile-first com bottom-nav fixa (Inicio/Maquinas/Galeria/Conta), tap targets ≥44px, inputs 16px (evita zoom iOS), safe-area-inset-bottom. Tablet/desktop via `@media (min-width: 720px / 1024px)` — bottom-nav some, top-nav reaparece.
+- ✅ **Login social (03/05/2026 17:30):** botoes "Continuar com Google/Facebook/Apple" nas paginas cadastro+login. Google funcional via redirect a `/v1/auth/google/start?tenant_key=pelucias-demo&site_slug=clubedasgruas&return_url=...`; callback retorna `?token=<bridge>` na URL, front troca via `/v1/auth/bridge/exchange` e popula sessao. Facebook+Apple com badge "Em breve" (disabled), aguardando credenciais. **"Esqueci minha senha"** funcional via modal → POST `/v1/auth/password/forgot`.
 - 🟡 **A record DNS pendente** — Ivo precisa criar no painel registro.br.
-- 🟡 **HTTPS pendente** — depende do A record (certbot automatico apos propagacao).
+- 🟡 **HTTPS pendente** — depende do A record (certbot automatico apos propagacao). Service Worker so registra em HTTPS (Chrome/Firefox); funciona em localhost mas no acesso por IP HTTP nao instala — apos certbot a PWA fica completa.
+- 🟡 **CORS na FreePix API (bloqueador descoberto hoje):** `api.freepix.net.br` responde 200 com dados, mas SEM header `Access-Control-Allow-Origin`. Browsers bloqueiam toda fetch cross-origin do site demo (errors silenciosos no console — stats/featured/gallery falham, mostram "—"). Tambem afeta o passo final do Google OAuth (chamada a `/v1/auth/bridge/exchange` falha por CORS apos o redirect). **Acao sugerida:** adicionar middleware CORS no FastAPI da freepix (allowlist `clubedasgruas.com.br` + `216.238.116.255:8081` ou `*` para endpoints publicos) — projeto `freepix`, fora deste escopo.
 - 🟡 Modulo `wallet_interop` (creditos cross-tenant) planejado para Sessao 9 da FreePix — sera o diferencial do Clube das Gruas (cliente compra credito no operador A e usa no operador B).
+- 🟡 **Pre-requisito Google OAuth:** `GOOGLE_OAUTH_CLIENT_ID/SECRET/REDIRECT_URI` precisam estar configurados no `.env` do servidor `api-freepix`. Caso nao esteja, o `/v1/auth/google/start` devolve 503 "google oauth not configured". (Ivo confirmou em 03/05/2026 17:25 que ja configurou na API.)
 
 ## Sessao ativa
 
@@ -89,15 +93,30 @@ const CONFIG = {
 
 ## Pendencias para a proxima sessao
 
-1. **Criar A record `clubedasgruas.com.br` → 216.238.116.255** no registro.br (acao do Ivo).
-2. **Rodar certbot** apos DNS propagar:
+1. **CORS na `api.freepix.net.br`** — bloqueador critico, afeta TODA chamada do site (stats/featured/gallery/bridge_exchange). Adicionar middleware CORS no FastAPI:
+   ```python
+   from fastapi.middleware.cors import CORSMiddleware
+   app.add_middleware(
+       CORSMiddleware,
+       allow_origins=["https://clubedasgruas.com.br", "https://www.clubedasgruas.com.br", "http://216.238.116.255:8081"],
+       allow_credentials=True,
+       allow_methods=["GET", "POST", "OPTIONS"],
+       allow_headers=["*"],
+   )
+   ```
+   (ou `allow_origins=["*"]` + `allow_credentials=False` para endpoints publicos so leitura). Sem isso, o demo `Clube das Gruas` mostra apenas "—" e o login Google nao consegue concluir o passo final do bridge.
+2. **Criar A record `clubedasgruas.com.br` → 216.238.116.255** no registro.br (acao do Ivo).
+3. **Rodar certbot** apos DNS propagar:
    ```bash
    ssh veiculos-vps 'certbot --nginx -d clubedasgruas.com.br -d www.clubedasgruas.com.br --non-interactive --agree-tos -m juniorisj17@gmail.com --redirect'
    ```
-3. **Sessao 8 da FreePix (proxima):** MQTT consumer + ESP32 firmware (auth no mosquitto, worker subscrevendo `freepix/+/event/+`, esboco firmware).
-4. **Sessao 9 da FreePix (futura):** modulo `wallet_interop` — feature signature do Clube das Gruas. Modelos `InteropMembership`, `InteropTransfer`, `SettlementBatch`. Categoria `network`. Ledger por tenant + settlement mensal entre operadores afiliados.
-5. **Trocar fotos `picsum.photos` por reais** quando tiver fotos das pelucias do Ivo.
-6. **Adicionar PIX top-up** (botao "+ Adicionar saldo" hoje so toasta — integrar com `/v1/payments/pix` quando expor).
+   PWA so instala em HTTPS — o service worker fica registrado mas inativo enquanto for HTTP.
+4. **Configurar credenciais Facebook + Apple OAuth** quando Ivo decidir abrir conta de developer (Meta + Apple Developer Program). Botoes ja estao no front com badge "Em breve" — basta tirar o `disabled` e ajustar o handler.
+5. **Sessao 8 da FreePix (proxima):** MQTT consumer + ESP32 firmware (auth no mosquitto, worker subscrevendo `freepix/+/event/+`, esboco firmware).
+6. **Sessao 9 da FreePix (futura):** modulo `wallet_interop` — feature signature do Clube das Gruas. Modelos `InteropMembership`, `InteropTransfer`, `SettlementBatch`. Categoria `network`. Ledger por tenant + settlement mensal entre operadores afiliados.
+7. **Trocar fotos `picsum.photos` por reais** quando tiver fotos das pelucias do Ivo.
+8. **Adicionar PIX top-up** (botao "+ Adicionar saldo" hoje so toasta — integrar com `/v1/payments/pix` quando expor).
+9. **Icone iOS PNG** — hoje o `apple-touch-icon` aponta pra `assets/icon.svg`; iOS Safari pode ignorar SVG e gerar miniatura do site. Quando relevante, gerar versao PNG (180x180 ou 192x192) e apontar.
 
 ## Como rodar localmente
 
@@ -128,3 +147,4 @@ curl -s -o /dev/null -w "%{http_code}\n" https://autopasso.com.br/   # validar a
 - **03/05/2026 16:50** - Claude Code - Rebrand Capturei → **Clube das Gruas** (commit `65098e8`). Nginx aceita `clubedasgruas.com.br` + `www` + `pelucias.freepix.net.br`. Validado `autopasso.com.br` intacto.
 - **03/05/2026 17:00** - Claude Code - Adicionado listener nginx em **porta 8081** (isolada do autopasso na :80). ufw allow 8081/tcp. Acesso publico via `http://216.238.116.255:8081/` (sem DNS). Latencia 92ms.
 - **03/05/2026 17:15** - Claude Code - Estrutura padrao do grupo aplicada: `AGENTS.md`/`CLAUDE.md`/`.secrets/servers.md` criados, `.gitignore` ganhou `.secrets/`, `D:\_CENTRAL\PROMPTS_INICIAIS.md` ganhou prompt #14, `D:\_CENTRAL\MASTER.md` registra o projeto.
+- **03/05/2026 17:35** - Claude Code - **PWA mobile-first + login social.** 3 arquivos novos: `manifest.json` (display:standalone, theme #ff5ea1, icons[svg maskable]), `assets/icon.svg` (ursinho desenhado em paths SVG, gradient rosa→lavanda→dourado), `sw.js` (cache-first do shell, network-only pra api.freepix). `assets/style.css` reescrito mobile-first (605→721 linhas) com bottom-nav fixa de 4 abas, tap targets ≥44px, inputs 16px (anti-zoom iOS), safe-area-inset-bottom. `index.html` ganhou meta PWA/iOS, bottom-nav, modal "Esqueci minha senha", install-prompt, e em ambas as paginas auth: 3 botoes sociais (Google funcional + Facebook/Apple disabled "Em breve") + divider "ou" + form email+senha mantido. `assets/app.js`: handler `handleBridgeToken()` (le `?token=` do callback Google e troca via `/v1/auth/bridge/exchange`), `startGoogleOAuth()` (redirect a `/v1/auth/google/start?tenant_key=pelucias-demo&site_slug=clubedasgruas&return_url=...`), modal esqueci senha (POST `/v1/auth/password/forgot`), `registerServiceWorker()` + `setupInstallPrompt()` (beforeinstallprompt). Validado mobile (375x812) + tablet (768x1024): bottom-nav some no tablet, top-nav reaparece, modal abre/fecha, URLs OAuth corretas. Deploy via tar `tar -C /d/FreePix/demo_pelucias --exclude=./.git --exclude=./.claude --exclude=./.secrets -czf - . | ssh veiculos-vps`. Smoke: demo 200, autopasso 200 (intacto), manifest/sw/icon servidos pelo nginx. **Problema descoberto e flagged pra Sessao seguinte:** `api.freepix.net.br` nao tem CORS — todas chamadas do front falham silenciosamente, requer middleware CORS no FastAPI da freepix.

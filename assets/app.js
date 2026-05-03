@@ -1,21 +1,18 @@
-/* === Clube das Gruas (by FreePix) - SPA consumindo a FreePix API ===
+/* === Clube das Gruas (by FreePix) - SPA + PWA consumindo a FreePix API ===
  *
- * Rede brasileira de gruas de pelucia com creditos cross-tenant.
- * Single-page app vanilla, routing por hash, consome 100% da API publica
- * https://api.freepix.net.br.
- *
- * Endpoints usados:
- *   - GET  /v1/claw/stats?tenant_key=pelucias-demo   (publico)
- *   - GET  /v1/claw/featured?tenant_key=pelucias-demo (publico)
- *   - GET  /v1/claw/gallery?tenant_key=pelucias-demo  (publico)
- *   - POST /v1/auth/register
- *   - POST /v1/auth/login
- *   - GET  /v1/wallet/accounts/pelucias-demo/{email}  (autenticado)
+ * Single-page app vanilla mobile-first, routing por hash.
+ * Endpoints:
+ *   GET  /v1/claw/{stats,featured,gallery}?tenant_key=pelucias-demo  (publico)
+ *   POST /v1/auth/{register,login,password/forgot}                   (publico)
+ *   GET  /v1/auth/google/start?tenant_key=...&return_url=...          (redirect oauth)
+ *   GET  /v1/auth/bridge/exchange?token=...                           (apos redirect google)
+ *   GET  /v1/wallet/accounts/pelucias-demo/{email}                    (autenticado tenant)
  */
 
 const CONFIG = {
     API_BASE: "https://api.freepix.net.br",
     TENANT_KEY: "pelucias-demo",
+    SITE_SLUG: "clubedasgruas",
     LS_TOKEN: "pelucias_demo_token",
     LS_USER: "pelucias_demo_user",
 };
@@ -51,18 +48,20 @@ function toast(msg, kind = "") {
     const el = $("#toast");
     el.textContent = msg;
     el.className = "toast show " + kind;
-    setTimeout(() => el.classList.remove("show"), 3000);
+    setTimeout(() => el.classList.remove("show"), 3500);
 }
 
 // ============================================================
 // API CLIENT
 // ============================================================
-async function apiGet(path) {
+async function apiGet(path, { withCredentials = false } = {}) {
     const url = CONFIG.API_BASE + path;
     const headers = { "Accept": "application/json" };
     const token = localStorage.getItem(CONFIG.LS_TOKEN);
     if (token) headers["Authorization"] = "Bearer " + token;
-    const r = await fetch(url, { headers });
+    const init = { headers };
+    if (withCredentials) init.credentials = "include";
+    const r = await fetch(url, init);
     if (!r.ok) throw { status: r.status, body: await r.text() };
     return r.json();
 }
@@ -86,8 +85,9 @@ function showRoute(name) {
     if (route) route.classList.remove("hidden");
     else $("#route-home").classList.remove("hidden");
 
-    $$(".nav a").forEach(a => a.classList.remove("active"));
-    $$(`.nav a[data-route="${name}"]`).forEach(a => a.classList.add("active"));
+    // Marca ativo na topbar nav E na bottom-nav
+    $$(".nav a, .bottom-nav a").forEach(a => a.classList.remove("active"));
+    $$(`.nav a[data-route="${name}"], .bottom-nav a[data-route="${name}"]`).forEach(a => a.classList.add("active"));
 
     window.scrollTo({ top: 0, behavior: "smooth" });
 
@@ -224,7 +224,7 @@ $("#load-more-gallery")?.addEventListener("click", () => {
 });
 
 // ============================================================
-// AUTH
+// AUTH — sessao e nav
 // ============================================================
 function currentUser() {
     const raw = localStorage.getItem(CONFIG.LS_USER);
@@ -232,7 +232,7 @@ function currentUser() {
     try { return JSON.parse(raw); } catch { return null; }
 }
 function setSession(token, user) {
-    localStorage.setItem(CONFIG.LS_TOKEN, token);
+    if (token) localStorage.setItem(CONFIG.LS_TOKEN, token);
     localStorage.setItem(CONFIG.LS_USER, JSON.stringify(user));
     refreshNavForAuth();
 }
@@ -245,8 +245,9 @@ function refreshNavForAuth() {
     const user = currentUser();
     const nav = $("#nav-actions");
     if (user) {
+        const shortName = (user.display_name || user.email.split("@")[0]).slice(0, 18);
         nav.innerHTML = `
-            <a href="#conta" class="btn btn-ghost" data-route="conta">${user.email.split("@")[0]}</a>
+            <a href="#conta" class="btn btn-ghost" data-route="conta">${shortName}</a>
             <a href="#conta" class="btn btn-primary" data-route="conta">Minha conta</a>
         `;
     } else {
@@ -257,6 +258,9 @@ function refreshNavForAuth() {
     }
 }
 
+// ============================================================
+// AUTH — register / login email+senha (mantido)
+// ============================================================
 $("#register-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -268,7 +272,6 @@ $("#register-form")?.addEventListener("submit", async (e) => {
     };
     try {
         const res = await apiPost("/v1/auth/register", payload);
-        // Resposta de register pode vir com user e/ou token; faz login direto se nao
         const access = res.access_token || res.token;
         const user = res.user || { email: payload.email, display_name: payload.display_name };
         if (access) {
@@ -276,7 +279,6 @@ $("#register-form")?.addEventListener("submit", async (e) => {
             toast("Conta criada! Bem-vindo 🎉", "success");
             window.location.hash = "#conta";
         } else {
-            // tenta login automatico
             const loginRes = await apiPost("/v1/auth/login", { email: payload.email, password: payload.password });
             setSession(loginRes.access_token || loginRes.token, loginRes.user || { email: payload.email });
             toast("Conta criada e logado! 🎉", "success");
@@ -308,20 +310,125 @@ $("#login-form")?.addEventListener("submit", async (e) => {
 });
 
 // ============================================================
+// AUTH — botoes sociais (Google / Facebook em breve / Apple em breve)
+// ============================================================
+document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".social-btn");
+    if (!btn || btn.disabled) return;
+
+    const provider = btn.dataset.social;
+    if (provider === "google") {
+        startGoogleOAuth();
+    }
+});
+
+function startGoogleOAuth() {
+    // return_url = URL atual sem hash, sem query string previa de token
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = "";
+    const returnUrl = url.toString();
+
+    const params = new URLSearchParams({
+        tenant_key: CONFIG.TENANT_KEY,
+        site_slug: CONFIG.SITE_SLUG,
+        return_url: returnUrl,
+    });
+    window.location.href = `${CONFIG.API_BASE}/v1/auth/google/start?${params.toString()}`;
+}
+
+/**
+ * Apos redirect do callback Google, o backend devolve para
+ * <return_url>?token=<bridge_token>. Detectamos isso na carga, trocamos
+ * pelo objeto user via /v1/auth/bridge/exchange e armazenamos no LS.
+ *
+ * Nota: o JWT vive em cookie HttpOnly do dominio api.freepix.net.br (apos
+ * SSL); chamadas autenticadas posteriores precisam de credentials:'include'.
+ */
+async function handleBridgeToken() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (!token) return;
+
+    // Limpa o token da URL pra nao re-disparar e nao expor no histórico
+    const cleanUrl = window.location.pathname + window.location.hash;
+    history.replaceState({}, document.title, cleanUrl);
+
+    try {
+        const res = await apiGet(`/v1/auth/bridge/exchange?token=${encodeURIComponent(token)}`, { withCredentials: true });
+        const user = res.user || res;
+        if (!user || !user.email) throw new Error("bridge_exchange_no_user");
+
+        // Sem JWT propio — sessao via cookie cross-origin do api.freepix.net.br
+        setSession(null, {
+            email: user.email,
+            display_name: user.display_name || user.name || null,
+            picture: user.picture || null,
+            email_verified: user.email_verified !== false,
+        });
+        toast("Logado com Google 🎉", "success");
+        window.location.hash = "#conta";
+    } catch (err) {
+        console.warn("bridge_exchange failed", err);
+        toast("Nao foi possivel concluir o login Google. Tente de novo.", "error");
+    }
+}
+
+// ============================================================
+// AUTH — esqueci minha senha
+// ============================================================
+$("#link-forgot-password")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const modal = $("#modal-forgot");
+    modal.classList.remove("hidden");
+    // Pre-preencher com email do form de login se ja digitado
+    const loginEmail = $("#login-form input[name='email']")?.value;
+    if (loginEmail) modal.querySelector("input[name='email']").value = loginEmail;
+    modal.querySelector("input[name='email']").focus();
+});
+
+$("#btn-forgot-cancel")?.addEventListener("click", () => {
+    $("#modal-forgot").classList.add("hidden");
+});
+
+$("#modal-forgot")?.addEventListener("click", (e) => {
+    // Fecha se clicar fora do modal-content
+    if (e.target.id === "modal-forgot") {
+        $("#modal-forgot").classList.add("hidden");
+    }
+});
+
+$("#forgot-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = fd.get("email");
+    try {
+        await apiPost("/v1/auth/password/forgot", { email });
+        // Backend e silencioso (nao vaza existencia da conta) — sempre 200 OK
+        $("#modal-forgot").classList.add("hidden");
+        toast("Se o email existir, enviamos o link de redefinicao 📨", "success");
+    } catch (err) {
+        toast("Erro ao enviar. Tente de novo.", "error");
+        console.warn("forgot password error", err);
+    }
+});
+
+// ============================================================
 // MINHA CONTA
 // ============================================================
 async function renderAccount(user) {
     $("#me-greeting").textContent = `Ola, ${(user.display_name || user.email.split("@")[0])}!`;
     $("#me-email").textContent = user.email;
 
-    // Tenta buscar saldo da carteira (endpoint exige tenant secret —
-    // numa demo real, isso seria proxy via backend; aqui exibimos R$ 0,00
-    // se nao for possivel)
+    // Endpoint exige tenant secret (nao temos no front) — exibimos R$ 0,00
+    // se nao for possivel. Numa versao real, ficaria atras de um proxy.
     try {
-        const wallet = await apiGet(`/v1/wallet/accounts/${CONFIG.TENANT_KEY}/${encodeURIComponent(user.email)}`);
+        const wallet = await apiGet(
+            `/v1/wallet/accounts/${CONFIG.TENANT_KEY}/${encodeURIComponent(user.email)}`,
+            { withCredentials: true },
+        );
         $("#balance-amount").textContent = fmtBRL(wallet.balance_cents);
     } catch (err) {
-        // Carteira ainda nao criada e normal — mostra R$ 0,00
         $("#balance-amount").textContent = "R$ 0,00";
     }
 }
@@ -337,14 +444,64 @@ $("#btn-logout")?.addEventListener("click", () => {
 });
 
 // ============================================================
+// PWA — Service Worker + install prompt
+// ============================================================
+function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    // SW so funciona em HTTPS ou localhost — em dev sob HTTP em IP qualquer da erro silencioso
+    navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .catch((err) => console.warn("SW register failed", err));
+}
+
+let deferredInstallPrompt = null;
+function setupInstallPrompt() {
+    const promptEl = $("#install-prompt");
+    const btnInstall = $("#btn-install");
+    const btnClose = $("#btn-install-close");
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        // Nao mostra se usuario ja descartou nesta sessao
+        if (sessionStorage.getItem("install_dismissed")) return;
+        promptEl.classList.remove("hidden");
+    });
+
+    btnInstall?.addEventListener("click", async () => {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        promptEl.classList.add("hidden");
+    });
+
+    btnClose?.addEventListener("click", () => {
+        promptEl.classList.add("hidden");
+        sessionStorage.setItem("install_dismissed", "1");
+    });
+
+    window.addEventListener("appinstalled", () => {
+        promptEl.classList.add("hidden");
+        toast("Instalado! Encontre na tela inicial 🧸", "success");
+    });
+}
+
+// ============================================================
 // INIT
 // ============================================================
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
     refreshNavForAuth();
+    // 1. Tenta resgatar token do redirect Google ANTES de roteamento
+    await handleBridgeToken();
+    // 2. Roteia
     handleHashChange();
+    // 3. PWA
+    registerServiceWorker();
+    setupInstallPrompt();
 });
 
-// Refresh stats e gallery na home a cada 30s (visual de "vivo")
+// Refresh stats na home a cada 30s
 setInterval(() => {
     if (window.location.hash === "#home" || window.location.hash === "" || window.location.hash === "#") {
         loadStats();
