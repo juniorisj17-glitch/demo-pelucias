@@ -1,6 +1,12 @@
 # Logs
 *.log
 
+# Secrets (REGRAS_GERAIS §7)
+.secrets/
+.env
+.env.*
+!.env.example
+
 # OS
 .DS_Store
 Thumbs.db
