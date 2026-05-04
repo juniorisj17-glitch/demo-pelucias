@@ -11,11 +11,124 @@
 
 const CONFIG = {
     API_BASE: "https://api.freepix.net.br",
+    // Tenant detectado dinamicamente em loadSiteConfig (whitelabel):
+    // — subdominio do clubedasgruas.com.br (ex: alice-pelucias.clubedasgruas.com.br)
+    // — querystring `?tenant=<slug>` (uso em dev / sem DNS proprio)
+    // — default `pelucias-demo` (Clube das Gruas raiz)
     TENANT_KEY: "pelucias-demo",
     SITE_SLUG: "clubedasgruas",
     LS_TOKEN: "pelucias_demo_token",
     LS_USER: "pelucias_demo_user",
 };
+
+// Defaults ricos do site quando o backend ainda nao retornou config
+// (ou tenant invalido). Garantem que a pagina renderize bonita
+// no fallback.
+const DEFAULT_TEXTS = {
+    brand_emoji: "🧸",
+    brand_tag: "rede de pelucias · by FreePix",
+    hero_eyebrow: "🎯 Clube das Gruas",
+    hero_title_1: "Pegou, ganhou.",
+    hero_title_grad: "Pague com PIX em 2 segundos.",
+    hero_paragraph: "Cadastre-se gratis, jogue por <strong>R$ 5,00</strong>, e quando capturar — voce vira manchete da nossa galeria publica.",
+    hero_badges: ["PIX em 2s", "Ursos lendarios", "Cashback 5%", "Galeria publica"],
+    hero_emojis: ["🧸", "🐻", "🦄", "🐱", "⭐"],
+    prize_price_cents: 500,
+    cashback_percent: 5,
+    footer_tagline: "Rede de gruas de pelucia com PIX. Operada com a plataforma FreePix de autoatendimento. Pegou, ganhou.",
+};
+
+// ============================================================
+// WHITELABEL — detecta tenant + carrega config + aplica visual
+// ============================================================
+function detectTenantKey() {
+    // 1. ?tenant=<slug> tem prioridade (uso em dev / preview)
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get("tenant");
+    if (fromQuery) return fromQuery.trim().toLowerCase();
+
+    // 2. Subdominio de clubedasgruas.com.br (sub.clubedasgruas.com.br)
+    const host = window.location.hostname;
+    if (host.endsWith(".clubedasgruas.com.br")) {
+        const sub = host.replace(/\.clubedasgruas\.com\.br$/, "");
+        // Ignora "www" e dominios uteis (api, etc)
+        if (sub && !["www", "api", "admin"].includes(sub)) {
+            return sub;
+        }
+    }
+
+    // 3. Default: Clube das Gruas raiz
+    return "pelucias-demo";
+}
+
+function applySiteConfig(cfg) {
+    // Mescla com defaults pra nunca quebrar layout
+    const t = Object.assign({}, DEFAULT_TEXTS, cfg.texts || {});
+
+    // Cor primaria (CSS var) — ajusta a paleta inteira
+    if (cfg.primary_color) {
+        document.documentElement.style.setProperty("--pink", cfg.primary_color);
+    }
+
+    // Branding
+    document.title = `${cfg.name || "Clube das Gruas"} · ${t.hero_title_1} ${t.hero_title_grad}`;
+    setText(".brand-emoji", t.brand_emoji);
+    setText(".brand strong", cfg.name || "Clube das Gruas");
+    setText(".brand-tag", t.brand_tag);
+
+    // Hero
+    setText(".hero .eyebrow", t.hero_eyebrow);
+    const heroH1 = document.querySelector(".hero h1");
+    if (heroH1) heroH1.innerHTML = `${t.hero_title_1} <span class="grad">${t.hero_title_grad}</span>`;
+    const heroP = document.querySelector(".hero-copy > p");
+    if (heroP) {
+        heroP.innerHTML = `${t.hero_paragraph} Ja entregamos <strong id="hero-stat-prizes">centenas</strong> de premios.`;
+    }
+
+    // Hero badges
+    const badgesContainer = document.querySelector(".hero-badges");
+    if (badgesContainer && Array.isArray(t.hero_badges)) {
+        badgesContainer.innerHTML = t.hero_badges
+            .map((label, i) => `<span class="badge${i % 2 ? " gold" : ""}">${label}</span>`)
+            .join("");
+    }
+
+    // Hero emojis (5 ursinhos)
+    if (Array.isArray(t.hero_emojis)) {
+        document.querySelectorAll(".bear-card").forEach((el, i) => {
+            if (t.hero_emojis[i]) el.textContent = t.hero_emojis[i];
+        });
+    }
+
+    // Footer
+    setText(".footer-content > div:first-child strong", `${t.brand_emoji} ${cfg.name || "Clube das Gruas"}`);
+    setText(".footer-content > div:first-child p", t.footer_tagline);
+
+    // Marca tenant atual no DOM (pra debug)
+    document.documentElement.dataset.tenant = cfg.tenant_key || "?";
+}
+
+function setText(sel, value) {
+    if (value === undefined || value === null) return;
+    document.querySelectorAll(sel).forEach(el => { el.textContent = value; });
+}
+
+async function loadSiteConfig() {
+    const tenantKey = detectTenantKey();
+    CONFIG.TENANT_KEY = tenantKey;
+    try {
+        const cfg = await apiGet(`/v1/public/tenants/${encodeURIComponent(tenantKey)}/site-config`);
+        // Garante TENANT_KEY do servidor (caso o subdominio mapeie pra slug diferente)
+        if (cfg.tenant_key) CONFIG.TENANT_KEY = cfg.tenant_key;
+        applySiteConfig(cfg);
+        return cfg;
+    } catch (err) {
+        console.warn(`site-config nao encontrado pra "${tenantKey}", usando defaults`, err);
+        // Aplica defaults visuais
+        applySiteConfig({ name: "Clube das Gruas", texts: DEFAULT_TEXTS });
+        return null;
+    }
+}
 
 // ============================================================
 // HELPERS
@@ -829,15 +942,19 @@ function setupInstallPrompt() {
 // INIT
 // ============================================================
 window.addEventListener("DOMContentLoaded", async () => {
+    // 0. WHITELABEL: detecta tenant + carrega config (cor, logo, textos)
+    //    PRIMEIRO de tudo pq CONFIG.TENANT_KEY pode mudar e todas as
+    //    chamadas seguintes dependem dele.
+    await loadSiteConfig();
     refreshNavForAuth();
-    // 1. Tenta resgatar token do redirect Google ANTES de roteamento
+    // 1. Tenta resgatar token do redirect Google
     await handleBridgeToken();
     // 2. Roteia
     handleHashChange();
     // 3. PWA
     registerServiceWorker();
     setupInstallPrompt();
-    // 4. Detecta admin em background — mostra link "🛠️ Admin" no topbar se aplicavel
+    // 4. Detecta admin em background
     refreshAdminLink();
 });
 
