@@ -798,6 +798,70 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
     line-height: 1;
 }
 
+/* === COMO JOGAR (3 passos didaticos na home) === */
+.how-play .section-head { text-align: center; max-width: none; }
+.how-play .section-head p { margin: 0 auto; max-width: 540px; }
+
+.play-steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    counter-reset: play-counter;
+}
+.play-step {
+    position: relative;
+    padding: 28px 24px 24px;
+    border-radius: var(--radius-xl);
+    background: var(--bg-card);
+    border: 2px solid var(--line);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    overflow: hidden;
+    transition: transform var(--transition), border-color var(--transition);
+}
+.play-step:hover { transform: translateY(-4px); border-color: var(--pink); }
+.play-step::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--gradient-rainbow);
+}
+.play-step-num {
+    display: grid; place-items: center;
+    width: 56px; height: 56px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: var(--gradient-pink);
+    color: #fff;
+    font-family: "Fredoka", sans-serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    box-shadow: var(--shadow-md);
+}
+.play-step-icon {
+    font-size: 56px;
+    line-height: 1;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 4px 8px rgba(255, 94, 161, 0.25));
+}
+.play-step h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+.play-step p { font-size: 0.95rem; line-height: 1.55; }
+.play-step p strong { color: var(--pink-dark); font-weight: 700; }
+
+.play-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 28px;
+    align-items: center;
+}
+.play-cta .btn { width: 100%; max-width: 320px; }
+
 /* === ADMIN DASHBOARD === */
 .btn-admin {
     background: var(--gradient-gold);
@@ -1230,6 +1294,17 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
     .admin-roadmap {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    /* Como jogar: 3 colunas lado a lado */
+    .play-steps {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+    }
+    .play-cta {
+        flex-direction: row;
+        justify-content: center;
+    }
+    .play-cta .btn { width: auto; }
 }
 
 /* ============================================================
