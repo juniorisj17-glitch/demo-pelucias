@@ -1,6 +1,6 @@
 // Service Worker - Clube das Gruas
 // Strategy: cache-first pro shell estatico, network-only pra api.freepix.net.br
-const CACHE = "clube-gruas-v6";
+const CACHE = "clube-gruas-v7";
 const SHELL = [
     "/",
     "/index.html",

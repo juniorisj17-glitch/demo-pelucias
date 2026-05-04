@@ -97,6 +97,77 @@ const CONFIG = {
 
 > Antes de comecar trabalho neste projeto, preencher: `Sessao ativa: <nome do agente> iniciada em <dd/mm/aaaa hh:mm>`. Ao terminar, voltar para `nenhuma` e atualizar Changelog.
 
+## Roadmap de producao (alinhado com Ivo em 04/05/2026)
+
+### Visao do produto
+
+**Plataforma SaaS multi-tenant whitelabel pra rede de auto-atendimento.** Cada **empresa** (operador) tem **sua pagina personalizada** com **seus usuarios**, **suas promocoes**, **seu cashback**, **seu preco de jogada**. O **cliente final e da plataforma** (nao da empresa) — Joao se cadastra uma vez (Google/email+senha) e pode ser cliente de N empresas do Clube simultaneamente, com saldo separado em cada (ja modelado: `WalletAccount` por user × tenant).
+
+### Decisoes do Ivo
+
+1. **Pagamento:** Mercado Pago **via API FreePix** (PIX + cartao salvo + boleto + assinatura recorrente). Front nunca chama MP direto.
+2. **Cobranca Clube:** Mensalidade por maquina + pacotes pra empresa grande + taxa pequena sobre transacoes PIX/cartao (moeda/dinheiro fisico sem taxa). **Numeros ainda nao definidos** — modelar `OperatorSubscription` parametrizavel.
+3. **Hardware:** nao expor valor publicamente. Conversa por WhatsApp caso a caso.
+4. **Whitelabel:** subdominio gratis automatico — `<nome-empresa>.clubedasgruas.com.br`. Wildcard cert quando chegar Fase 1.
+
+### Conceito-chave: cliente compartilhado entre empresas
+
+- `PlatformUser` global (1 conta por email)
+- `TenantMembership` por (user, tenant) — Joao vira "end_user" em N empresas
+- `WalletAccount` por (user × tenant × moeda) — saldos separados
+- Cada empresa configura seu cashback %, suas promocoes, seu preco da jogada
+- Cliente recebe notificacao via canal preferido (email/WhatsApp) por empresa que ele segue
+
+### Fase 1 — Whitelabel + ESP32 MQTT MVP (proxima, 2-3 sessoes)
+
+**Objetivo:** primeiro operador pagante real consegue subir uma grua e ganhar dinheiro.
+
+- Backend `freepix`: 
+  - `WalletEntry.source_kind` (PIX/cartao/moeda/dinheiro) + MQTT consumer (Sessao 8 da freepix ja planejada)
+  - Comandos remotos basicos (give_credit + on/off) via MQTT publish
+  - Endpoint `/v1/sites/{slug}/config` retorna logo, cor, fotos, preco da jogada, cashback %
+  - `OperatorSubscription` parametrizavel
+- Backend `freepix` + MP: integracao Mercado Pago (assinatura cartao recorrente + PIX dinamico)
+- Firmware ESP32: cliente MQTT basico (sub `freepix/{cp_code}/cmd/*`, pub heartbeat + pulse + status)
+- Front `demo_pelucias`: refatorar pra ler `/v1/sites/{slug}/config` e renderizar logo/cor/fotos/preco/cashback do tenant. Site vira whitelabel real.
+- Front: cadastro de empresa-operadora (admin) → tenant criado + subdominio funcional
+- Front admin: cadastro de maquina (associar MAC → empresa → loja), restock, ver pulso ao vivo
+
+### Fase 2 — Cobranca recorrente + impressao (1-2 sessoes)
+
+**Objetivo:** Clube cobra do operador automatico; operador imprime QR pra colar na grua.
+
+- Backend: `OperatorSubscription` ativa cobranca recorrente via MP (cartao salvo)
+- Backend: registro de boleto via MP
+- Front admin: tela "minha mensalidade", historico, salvar cartao
+- Front: gerar QR code da loja em PDF imprimivel (logo + URL `<empresa>.clubedasgruas.com.br/loja/{slug}`)
+- Front: imprimir QR PIX recebimento (MP QR copia-e-cola)
+- Backend: notificar cliente (email/WhatsApp) quando empresa que ele segue cria promocao
+
+### Fase 3 — Caixa fisico + repasse Clube (2 sessoes)
+
+**Objetivo:** auditoria completa do dinheiro; settlement Clube ↔ operador automatico.
+
+- Backend: `CashCount` (contagem manual dinheiro/moeda) + endpoint reconciliacao com pulso ESP32
+- Backend: modulo `wallet_interop` (signature) — settlement mensal Clube ↔ operador, taxa configuravel
+- Backend: modelo `Promotion` (codigo desconto, "primeira jogada R$ 1", happy hour, etc)
+- Front admin: tela "fechar caixa" (contagem manual + diff pulso)
+- Front admin: extrato com filtro por origem (PIX/cartao/moeda/dinheiro)
+- Front admin: gerenciar promocoes do tenant
+
+### Fase 4 — Operadores delegados + horarios + relatorios (1-2 sessoes)
+
+**Objetivo:** lojas grandes (10 maquinas em 4 enderecos) operam com varios funcionarios.
+
+- Backend: hierarquia operador → loja → maquina → operador delegado com permissao especifica (`MerchantMembership` ja existe)
+- Backend: `OperatingHours` por maquina (auto-off fora do horario)
+- Front admin: gestao de usuarios delegados, atribuicao de maquinas, dashboard hierarquico
+- Front admin: relatorios BI (faturamento por loja, premios entregues, churn, etc)
+
+### Bloqueador atual
+
+**Login admin Google em prod ainda nao confirmado funcionando** apos commits `06b11d8` (freepix) + `45217fd` (demo_pelucias). Ivo precisa testar (hard-reload em http://216.238.116.255:8081/, login Google, verificar se aparece botao "🛠️ Admin"). **Necessario antes de avancar pra Fase 1** — fundacao auth precisa estar solida.
+
 ## Pendencias para a proxima sessao
 
 ### Painel admin do operador (Ivo pediu — escopo grande, depende de backend novo)
@@ -181,6 +252,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://autopasso.com.br/   # validar a
 - **03/05/2026 16:50** - Claude Code - Rebrand Capturei → **Clube das Gruas** (commit `65098e8`). Nginx aceita `clubedasgruas.com.br` + `www` + `pelucias.freepix.net.br`. Validado `autopasso.com.br` intacto.
 - **03/05/2026 17:00** - Claude Code - Adicionado listener nginx em **porta 8081** (isolada do autopasso na :80). ufw allow 8081/tcp. Acesso publico via `http://216.238.116.255:8081/` (sem DNS). Latencia 92ms.
 - **03/05/2026 17:15** - Claude Code - Estrutura padrao do grupo aplicada: `AGENTS.md`/`CLAUDE.md`/`.secrets/servers.md` criados, `.gitignore` ganhou `.secrets/`, `D:\_CENTRAL\PROMPTS_INICIAIS.md` ganhou prompt #14, `D:\_CENTRAL\MASTER.md` registra o projeto.
+- **04/05/2026** - Claude Code - **Roadmap de producao alinhado.** 4 fases registradas oficialmente no AGENTS.md (Whitelabel + ESP32 MQTT MVP → Cobranca recorrente + impressao → Caixa fisico + repasse Clube → Operadores delegados + horarios + relatorios). Decisoes do Ivo: pagamento Mercado Pago via API freepix; mensalidade por maquina + pacotes + taxa pequena (numeros nao fixados — modelar parametrizavel); subdominio `<empresa>.clubedasgruas.com.br` (whitelabel via wildcard cert); cliente da plataforma compartilhado entre tenants (`PlatformUser` global, membership por tenant, wallet separado — ja modelado). Tirados valores R$ 180/7% da landing operador, substituidos por "fala com a gente no WhatsApp pra fechar pacote". SW v6 → v7. Bloqueador antes da Fase 1: Ivo precisa confirmar que login admin Google em prod esta funcionando apos commits 06b11d8/45217fd.
 - **04/05/2026** - Claude Code - **Login Google volta a funcionar pra admin (bridge_exchange retorna JWT).** Mudanca cross-project no `freepix` ([platform_auth.py:845](D:/FreePix/freepix/platform_auth.py:845)): bridge_exchange cria session + emite access_token JWT na resposta, alem dos dados do user. Front (`handleBridgeToken` em [app.js](assets/app.js)) usa `res.access_token` no `setSession` em vez de `null`. Resolve o problema do link "🛠️ Admin" nao aparecer apos login Google — `fetchMe()` agora consegue chamar `/v1/auth/me` com Bearer JWT real (browsers bloqueiam cookies HttpOnly cross-origin do api.freepix.net.br pro 216.238.116.255). 168/168 tests freepix passando, deploy `freepix-api.service` restartado (active, health 200), bridge/exchange invalido 400, /me 401 sem token, autopasso 200 (intacto). SW v5 → v6.
 - **04/05/2026** - Claude Code - **Fotos picsum filtradas + landing operador B2B (`#operador`).** Helper `isPlaceholderPhoto()` no front detecta seeds antigos do `pelucias-demo` apontando pra `picsum.photos` e troca por fallback estilizado (gradient por raridade + emoji XL). Featured cards 96px com hover scale+rotate; gallery 64px. Nova rota `#operador` com hero escuro/dourado com 🧸 watermark gigante, 6 cards de beneficios, 4 passos de onboarding, pricing transparente (R$ 180 ESP32 + 7% PIX/cartao + sem fidelidade), 2 CTAs WhatsApp `wa.me/5554993793621`. Link "Pra operadores" no topbar e footer. SW v4 → v5. Smoke prod: demo 200, autopasso 200 (intacto).
 - **04/05/2026** - Claude Code - **Secao "Como jogar" didatica na home (inspirada em aguapetrus.com.br).** 3 passos numerados QR→Saldo→Jogar entre hero e featured. Cards com numero em circulo gradient rosa, emoji 56px, top border rainbow, hover lift. Mobile-first 1 coluna; tablet+ 3 colunas. CTAs "Cadastrar gratis" + "Mais detalhes" (link #como-funciona). SW v3 → v4. Validado mobile+tablet, deploy demo 200, autopasso 200.
