@@ -44,6 +44,16 @@ const RARITY_LABEL = {
     comum: "Comum", raro: "Raro", lendario: "Lendario", exclusivo: "Exclusivo",
 };
 
+// Filtro: ignoramos URLs do picsum.photos (fotos aleatorias dos seeds antigos
+// — nao tem nada a ver com pelucias). Cai pro fallback de gradient + emoji.
+function isPlaceholderPhoto(url) {
+    if (!url) return true;
+    return /picsum\.photos|placeholder|placehold/i.test(url);
+}
+function safePhotoUrl(url) {
+    return isPlaceholderPhoto(url) ? "" : url;
+}
+
 function toast(msg, kind = "") {
     const el = $("#toast");
     el.textContent = msg;
@@ -159,11 +169,12 @@ async function loadFeatured(targetId, limit) {
         target.innerHTML = machines.map(m => {
             const p = m.rare_prize;
             const emoji = RARITY_EMOJI[p.rarity] || "🧸";
-            const imageStyle = p.image_url ? `background-image:url('${p.image_url}')` : "";
+            const photo = safePhotoUrl(p.image_url);
+            const imageStyle = photo ? `background-image:url('${photo}')` : "";
             return `
                 <div class="featured-card">
                     <span class="rarity-tag ${p.rarity}">${RARITY_LABEL[p.rarity] || p.rarity}</span>
-                    <div class="prize-image" style="${imageStyle}">${p.image_url ? "" : emoji}</div>
+                    <div class="prize-image rarity-${p.rarity}" style="${imageStyle}">${photo ? "" : emoji}</div>
                     <h3>${p.name}</h3>
                     <div class="machine-label">Maquina ${m.label}</div>
                     <div class="remaining">
@@ -324,11 +335,11 @@ async function loadGallery(targetId, limit, append = false) {
         const items = data.items || [];
         const html = items.map(w => {
             const emoji = RARITY_EMOJI[w.prize.rarity] || "🧸";
-            const photo = w.photo_url || w.prize.image_url;
+            const photo = safePhotoUrl(w.photo_url || w.prize.image_url);
             const photoStyle = photo ? `background-image:url('${photo}')` : "";
             return `
                 <div class="gallery-card">
-                    <div class="photo" style="${photoStyle}">${photo ? "" : emoji}</div>
+                    <div class="photo rarity-${w.prize.rarity}" style="${photoStyle}">${photo ? "" : emoji}</div>
                     <div class="winner-name">${w.user_display_name || "Anonimo"}<span class="rarity-pill ${w.prize.rarity}">${RARITY_LABEL[w.prize.rarity] || w.prize.rarity}</span></div>
                     <div class="prize-name">${w.prize.name}</div>
                     <div class="when">${fmtDate(w.won_at)} · ${w.machine.label}</div>
@@ -726,11 +737,11 @@ async function loadAdmin() {
         winsEl.innerHTML = items.length === 0 ? '<div class="empty">Nenhum premio entregue ainda.</div>' :
             items.map(w => {
                 const emoji = RARITY_EMOJI[w.prize.rarity] || "🧸";
-                const photo = w.photo_url || w.prize.image_url;
+                const photo = safePhotoUrl(w.photo_url || w.prize.image_url);
                 const photoStyle = photo ? `background-image:url('${photo}')` : "";
                 return `
                     <div class="gallery-card">
-                        <div class="photo" style="${photoStyle}">${photo ? "" : emoji}</div>
+                        <div class="photo rarity-${w.prize.rarity}" style="${photoStyle}">${photo ? "" : emoji}</div>
                         <div class="winner-name">${w.user_display_name || "Anonimo"}<span class="rarity-pill ${w.prize.rarity}">${RARITY_LABEL[w.prize.rarity] || w.prize.rarity}</span></div>
                         <div class="prize-name">${w.prize.name}</div>
                         <div class="when">${fmtDate(w.won_at)} · ${w.machine.label}</div>
