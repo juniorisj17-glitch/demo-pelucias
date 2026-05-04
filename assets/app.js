@@ -511,8 +511,9 @@ async function handleBridgeToken() {
         const user = res.user || res;
         if (!user || !user.email) throw new Error("bridge_exchange_no_user");
 
-        // Sem JWT propio — sessao via cookie cross-origin do api.freepix.net.br
-        setSession(null, {
+        // Backend agora devolve access_token explicito — guardamos como Bearer
+        // pra chamadas autenticadas (cookies HttpOnly cross-origin nao chegam ate aqui).
+        setSession(res.access_token || null, {
             email: user.email,
             display_name: user.display_name || user.name || null,
             picture: user.picture || null,
