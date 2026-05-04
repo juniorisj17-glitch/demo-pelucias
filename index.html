@@ -387,6 +387,50 @@
                 </div>
             </div>
 
+            <!-- MINI-MAPA — sua rede ao vivo -->
+            <section class="section">
+                <div class="section-head">
+                    <h2>📍 Sua rede de gruas no mapa, ao vivo</h2>
+                    <p>Cada grua aparece com status em tempo real. Cliente acha a maquina mais perto, voce monitora tudo na palma da mao.</p>
+                </div>
+                <div class="op-mini-map">
+                    <div id="op-map-container"></div>
+                    <div class="op-map-legend">
+                        <span class="legend-item"><span class="legend-dot online"></span> Online</span>
+                        <span class="legend-item"><span class="legend-dot offline"></span> Offline</span>
+                        <span class="legend-item"><span class="legend-dot pending"></span> Em manutencao</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3 MODOS DE PAGAMENTO -->
+            <section class="section">
+                <div class="section-head">
+                    <h2>💸 Como o cliente paga</h2>
+                    <p>Tres caminhos pra atender qualquer perfil de cliente — do mais rapido ao mais fiel.</p>
+                </div>
+                <div class="op-pay-modes">
+                    <article class="pay-mode pay-mode-1">
+                        <span class="pay-mode-num">1</span>
+                        <span class="pay-mode-icon" aria-hidden="true">💳</span>
+                        <h3>No local · sem cadastro</h3>
+                        <p>Cliente nao quer cadastro? Tudo bem. Paga PIX ou na maquininha de cartao do shopping. Joga e leva. <strong>Zero atrito.</strong></p>
+                    </article>
+                    <article class="pay-mode pay-mode-2">
+                        <span class="pay-mode-num">2</span>
+                        <span class="pay-mode-icon" aria-hidden="true">📱</span>
+                        <h3>No site · sem cadastro</h3>
+                        <p>Cliente escaneia o QR da grua, paga PIX ou cartao direto no celular. Sem instalar app, sem criar conta. Joga em segundos.</p>
+                    </article>
+                    <article class="pay-mode pay-mode-3">
+                        <span class="pay-mode-num">3</span>
+                        <span class="pay-mode-icon" aria-hidden="true">⭐</span>
+                        <h3>No site · cliente cadastrado</h3>
+                        <p>Cliente VIP — voce manda mensagens das suas <strong>promocoes</strong>, libera <strong>bonus de boas-vindas</strong>, vende <strong>pacotes de credito</strong> e <strong>assinatura mensal</strong>. Cashback automatico. Cliente fiel volta sempre.</p>
+                    </article>
+                </div>
+            </section>
+
             <!-- O PROBLEMA E A SOLUCAO -->
             <section class="section">
                 <div class="section-head">
@@ -408,10 +452,10 @@
                         <h3>🚀 Com o Clube das Gruas</h3>
                         <ul>
                             <li><strong>Cliente paga PIX direto no celular</strong>, joga em 2 segundos</li>
-                            <li>Cadastro fica salvo — cliente recebe novidades, promocoes, cashback</li>
+                            <li>Cadastro VIP fica salvo — cliente recebe novidades, promocoes, cashback</li>
                             <li>App te avisa <strong>na hora</strong> quando algo trava</li>
                             <li>Da credito remoto, liga/desliga, repoe estoque — tudo do celular</li>
-                            <li><strong>Auditoria automatica</strong>: PIX + cartao + moeda + dinheiro batem com pulso ESP32</li>
+                            <li><strong>Auditoria automatica</strong>: PIX, cartao, moeda e dinheiro batem com a telemetria da maquina</li>
                             <li>Cada premio entregue vira <strong>marketing automatico</strong> na galeria publica</li>
                         </ul>
                     </div>
@@ -427,12 +471,12 @@
                     <div class="op-step">
                         <span class="op-step-num">1</span>
                         <h3>Voce fala com a gente</h3>
-                        <p>Manda no WhatsApp quantas gruas tem e onde. Em 24h voce esta cadastrado como operador, com seu painel pronto.</p>
+                        <p>Manda no WhatsApp quantas gruas tem e onde. A gente cadastra voce como operador e seu painel ja sai pronto.</p>
                     </div>
                     <div class="op-step">
                         <span class="op-step-num">2</span>
-                        <h3>Conecta a placa</h3>
-                        <p>Voce instala uma placa ESP32 dentro da sua grua, ligada ao botao da garra e ao acumulador de moedas. Em 10 minutos esta funcionando.</p>
+                        <h3>Conecta o modulo de telemetria</h3>
+                        <p>O modulo de telemetria fica dentro da sua grua, ligado ao botao da garra e ao acumulador de moedas. Plug-and-play.</p>
                     </div>
                     <div class="op-step">
                         <span class="op-step-num">3</span>
@@ -504,11 +548,11 @@
                 <div class="op-faq">
                     <details class="op-faq-item">
                         <summary>Quanto tempo pra estar no ar?</summary>
-                        <p>24 horas pra cadastro + envio da placa, ~10 min de instalacao por grua. Configuracao do painel e site personalizado: na hora.</p>
+                        <p>Cadastro do operador, envio do modulo de telemetria, instalacao na grua e seu painel personalizado — tudo entra na conversa do WhatsApp e sai pronto rapido. Variavel de acordo com a sua agenda e quantidade de gruas.</p>
                     </details>
                     <details class="op-faq-item">
                         <summary>E se eu quiser sair do Clube?</summary>
-                        <p>Sai quando quiser. Sem fidelidade. A placa e sua. Voce leva os dados dos seus clientes em CSV. So.</p>
+                        <p>Sai quando quiser. Sem fidelidade. O modulo de telemetria e seu. Voce leva os dados dos seus clientes em CSV. So.</p>
                     </details>
                     <details class="op-faq-item">
                         <summary>O cliente precisa baixar app?</summary>
@@ -620,7 +664,7 @@
                     <div class="admin-roadmap">
                         <div class="roadmap-card">
                             <h3>💰 Controle financeiro por origem</h3>
-                            <p>Entradas por PIX / cartao / moeda / dinheiro — cada pulso lido pela ESP32 vira <code>WalletEntry</code> com origem identificada.</p>
+                            <p>Entradas por PIX / cartao / moeda / dinheiro — cada pulso lido pela telemetria vira lancamento contabil com origem identificada.</p>
                             <span class="roadmap-tag">Sessao 8 FreePix</span>
                         </div>
                         <div class="roadmap-card">

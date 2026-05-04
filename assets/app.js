@@ -230,6 +230,8 @@ function showRoute(name) {
         renderAccount(user);
     } else if (name === "admin") {
         loadAdmin();
+    } else if (name === "operador") {
+        loadOperadorMap();
     }
 }
 
@@ -433,6 +435,65 @@ async function loadMap() {
     setTimeout(() => mapInstance?.invalidateSize(), 120);
 
     overlay?.classList.add("hidden");
+}
+
+// ============================================================
+// OPERADOR MINI-MAP — landing #operador
+// ============================================================
+let opMapInstance = null;
+let opMapMarkers = [];
+
+function loadOperadorMap() {
+    if (typeof L === "undefined") {
+        setTimeout(loadOperadorMap, 300);
+        return;
+    }
+    const container = $("#op-map-container");
+    if (!container) return;
+
+    if (!opMapInstance) {
+        opMapInstance = L.map("op-map-container", {
+            zoomControl: false,
+            scrollWheelZoom: false,
+            dragging: false,
+            tap: false,
+            touchZoom: false,
+            doubleClickZoom: false,
+            keyboard: false,
+        }).setView([-15.78, -47.93], 4);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }).addTo(opMapInstance);
+    }
+
+    // Limpa marcadores anteriores
+    for (const m of opMapMarkers) m.remove();
+    opMapMarkers = [];
+
+    // Reusa DEMO_POINTS (5 shoppings BR) — landing e visual didatico
+    const bounds = [];
+    for (const p of DEMO_POINTS) {
+        const status = classifyStatus(p);
+        const icon = L.divIcon({
+            className: "",
+            html: `<div class="machine-pin ${status}"><span class="pin-emoji">🎰</span></div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -28],
+        });
+        const marker = L.marker([p.latitude, p.longitude], { icon })
+            .bindPopup(`<div class="popup-machine"><h4>${p.name}</h4><span class="pop-status ${status}">${statusLabel(status)}</span></div>`);
+        marker.addTo(opMapInstance);
+        opMapMarkers.push(marker);
+        bounds.push([p.latitude, p.longitude]);
+    }
+
+    if (bounds.length > 1) {
+        opMapInstance.fitBounds(bounds, { padding: [40, 40] });
+    }
+
+    setTimeout(() => opMapInstance?.invalidateSize(), 120);
 }
 
 // ============================================================

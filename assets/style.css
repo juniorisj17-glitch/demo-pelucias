@@ -979,6 +979,110 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
 .op-final-cta h2 { font-size: 1.6rem; margin-bottom: 10px; }
 .op-final-cta p { margin-bottom: 18px; }
 
+/* === LANDING OPERADOR — mini-mapa === */
+.op-mini-map {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 2px solid var(--line);
+    background: #e8e0d3;
+}
+#op-map-container {
+    width: 100%;
+    height: 100%;
+}
+.op-map-legend {
+    position: absolute;
+    bottom: 12px; left: 12px;
+    z-index: 500;
+    display: flex; gap: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+/* === LANDING OPERADOR — 3 modos de pagamento === */
+.op-pay-modes {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    counter-reset: pay-mode-counter;
+}
+.pay-mode {
+    position: relative;
+    padding: 22px 20px 18px 20px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border: 2px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition), border-color var(--transition);
+    overflow: hidden;
+}
+.pay-mode:hover { transform: translateY(-3px); border-color: var(--pink); }
+.pay-mode::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+}
+.pay-mode-1::before { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
+.pay-mode-2::before { background: var(--gradient-pink); }
+.pay-mode-3::before { background: var(--gradient-rainbow); }
+
+.pay-mode-num {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 28px; height: 28px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: var(--bg-page);
+    color: var(--text-secondary);
+    font-family: "Fredoka", sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    border: 2px solid var(--line);
+}
+.pay-mode-3 .pay-mode-num {
+    background: var(--gradient-rainbow);
+    color: #fff;
+    border-color: transparent;
+}
+.pay-mode-icon {
+    display: inline-block;
+    font-size: 38px;
+    line-height: 1;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 4px 8px rgba(255, 94, 161, 0.18));
+}
+.pay-mode h3 {
+    margin-bottom: 8px;
+    font-size: 1.05rem;
+}
+.pay-mode p {
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+.pay-mode p strong { color: var(--pink-dark); font-weight: 700; }
+
+/* O modo VIP (cadastrado) destacado */
+.pay-mode-3 {
+    background: linear-gradient(135deg, var(--pink-tint) 0%, var(--gold-soft) 100%);
+    border-color: var(--pink-soft);
+}
+.pay-mode-3:hover {
+    border-color: var(--pink);
+}
+
 /* === LANDING OPERADOR — problema vs solucao === */
 .op-vs {
     display: grid;
@@ -1616,6 +1720,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
     .op-vs { grid-template-columns: 1fr 1fr; gap: 18px; }
     .op-demo { padding: 40px 32px; }
     .op-demo h2 { font-size: 1.7rem; }
+    .op-mini-map { height: 420px; }
+    .op-pay-modes { grid-template-columns: repeat(3, 1fr); gap: 16px; }
 }
 
 /* ============================================================
