@@ -105,6 +105,8 @@ function showRoute(name) {
         const user = currentUser();
         if (!user) { window.location.hash = "#login"; return; }
         renderAccount(user);
+    } else if (name === "admin") {
+        loadAdmin();
     }
 }
 
@@ -366,24 +368,31 @@ function currentUser() {
 function setSession(token, user) {
     if (token) localStorage.setItem(CONFIG.LS_TOKEN, token);
     localStorage.setItem(CONFIG.LS_USER, JSON.stringify(user));
+    meCache = null;
     refreshNavForAuth();
+    refreshAdminLink();
 }
 function clearSession() {
     localStorage.removeItem(CONFIG.LS_TOKEN);
     localStorage.removeItem(CONFIG.LS_USER);
+    meCache = null;
     refreshNavForAuth();
+    refreshAdminLink();
 }
 function refreshNavForAuth() {
     const user = currentUser();
     const nav = $("#nav-actions");
+    const adminLinkHtml = `<a href="#admin" class="btn btn-admin hidden" data-route="admin" id="nav-admin-link" title="Painel admin">🛠️ Admin</a>`;
     if (user) {
         const shortName = (user.display_name || user.email.split("@")[0]).slice(0, 18);
         nav.innerHTML = `
+            ${adminLinkHtml}
             <a href="#conta" class="btn btn-ghost" data-route="conta">${shortName}</a>
             <a href="#conta" class="btn btn-primary" data-route="conta">Minha conta</a>
         `;
     } else {
         nav.innerHTML = `
+            ${adminLinkHtml}
             <a href="#login" class="btn btn-ghost" data-route="login">Entrar</a>
             <a href="#cadastro" class="btn btn-primary" data-route="cadastro">Cadastrar</a>
         `;
@@ -576,6 +585,191 @@ $("#btn-logout")?.addEventListener("click", () => {
 });
 
 // ============================================================
+// ADMIN — gating + dashboard
+// ============================================================
+let meCache = null;
+const ADMIN_ROLES = ["admin", "manager", "owner"];
+
+async function fetchMe({ force = false } = {}) {
+    if (meCache && !force) return meCache;
+    const token = localStorage.getItem(CONFIG.LS_TOKEN);
+    if (!token && !currentUser()) return null;
+    try {
+        const me = await apiGet("/v1/auth/me", { withCredentials: true });
+        meCache = me.user || me;
+        return meCache;
+    } catch (e) {
+        console.warn("/v1/auth/me failed", e);
+        return null;
+    }
+}
+
+function isAdminOf(me, tenantKey) {
+    if (!me || !Array.isArray(me.memberships)) return false;
+    return me.memberships.some(m =>
+        m.tenant_key === tenantKey && ADMIN_ROLES.includes(m.role) && m.status === "active",
+    );
+}
+
+async function refreshAdminLink() {
+    const link = $("#nav-admin-link");
+    if (!link) return;
+    const user = currentUser();
+    if (!user) { link.classList.add("hidden"); return; }
+    const me = await fetchMe();
+    if (isAdminOf(me, CONFIG.TENANT_KEY)) {
+        link.classList.remove("hidden");
+    } else {
+        link.classList.add("hidden");
+    }
+}
+
+const MODULE_LABELS = {
+    wallet: { emoji: "💰", name: "Carteira digital" },
+    cashback: { emoji: "🎁", name: "Cashback" },
+    scheduling: { emoji: "📅", name: "Agendamento" },
+    whatsapp_alerts: { emoji: "💬", name: "Alertas WhatsApp" },
+    claw_machine: { emoji: "🎰", name: "Gruas de pelucia" },
+    ocpp_charging: { emoji: "⚡", name: "Carregadores EV (OCPP)" },
+    payments_pix: { emoji: "🇧🇷", name: "Pagamentos PIX" },
+    payments_card: { emoji: "💳", name: "Pagamentos Cartao" },
+    notifications: { emoji: "🔔", name: "Notificacoes" },
+    reports_basic: { emoji: "📊", name: "Relatorios basicos" },
+    remote_commands: { emoji: "📡", name: "Comandos remotos" },
+    wallet_interop: { emoji: "🔗", name: "Creditos cross-tenant" },
+};
+
+function showAdminGate(which) {
+    ["loading", "noauth", "noaccess", "dashboard"].forEach(g => {
+        const el = $(`#admin-gate-${g}`) || $("#admin-dashboard");
+        if (g === "dashboard") {
+            $("#admin-dashboard").classList.toggle("hidden", which !== "dashboard");
+        } else if (el) {
+            el.classList.toggle("hidden", which !== g);
+        }
+    });
+}
+
+async function loadAdmin() {
+    showAdminGate("loading");
+
+    const user = currentUser();
+    if (!user) { showAdminGate("noauth"); return; }
+
+    const me = await fetchMe({ force: true });
+    if (!me) { showAdminGate("noauth"); return; }
+    if (!isAdminOf(me, CONFIG.TENANT_KEY)) { showAdminGate("noaccess"); return; }
+
+    showAdminGate("dashboard");
+    $("#admin-greeting").textContent = `do operador, ${me.display_name || me.email.split("@")[0]}`;
+    $("#admin-email").textContent = `${me.email} · admin de ${CONFIG.TENANT_KEY}`;
+
+    // Carrega tudo em paralelo
+    const [statsRes, pointsRes, featuredRes, galleryRes, modulesRes] = await Promise.allSettled([
+        apiGet(`/v1/claw/stats?tenant_key=${CONFIG.TENANT_KEY}`),
+        apiGet(`/v1/map/points?tenant_key=${CONFIG.TENANT_KEY}&mappable_only=false`),
+        apiGet(`/v1/claw/featured?tenant_key=${CONFIG.TENANT_KEY}&limit=50`),
+        apiGet(`/v1/claw/gallery?tenant_key=${CONFIG.TENANT_KEY}&limit=8`),
+        apiGet(`/v1/system/modules`).catch(() => apiGet(`/v1/modules`)),
+    ]);
+
+    // KPIs
+    if (statsRes.status === "fulfilled") {
+        const s = statsRes.value;
+        $("#adm-kpi-total").textContent = s.total_prizes_won ?? "—";
+        $("#adm-kpi-rare").textContent = s.rare_prizes_won ?? "—";
+        $("#adm-kpi-24h").textContent = s.last_24h_wins ?? "—";
+        $("#adm-kpi-machines").textContent = s.active_machines_with_inventory ?? "—";
+    }
+
+    // Maquinas (cruza com featured pra mostrar premio raro)
+    const machinesEl = $("#admin-machines");
+    if (pointsRes.status === "fulfilled") {
+        const points = pointsRes.value.points || [];
+        const featuredByDeviceId = {};
+        if (featuredRes.status === "fulfilled") {
+            for (const m of (featuredRes.value.machines || [])) {
+                featuredByDeviceId[m.device_id] = m;
+            }
+        }
+        const devicePoints = points.filter(p => p.kind === "device" || p.kind === "operational");
+        if (devicePoints.length === 0) {
+            machinesEl.innerHTML = `<div class="empty">Nenhuma maquina cadastrada com localizacao no tenant <code>${CONFIG.TENANT_KEY}</code>. Cadastre via <code>POST /v1/operational-points</code>.</div>`;
+        } else {
+            machinesEl.innerHTML = devicePoints.map(p => {
+                const status = classifyStatus(p);
+                const deviceId = p.external_ref ? parseInt(p.external_ref, 10) : null;
+                const featured = deviceId && featuredByDeviceId[deviceId];
+                const prizeHtml = featured && featured.rare_prize ? `
+                    <div class="am-prize">${RARITY_EMOJI[featured.rare_prize.rarity] || "🧸"} ${featured.rare_prize.name} · ${featured.rare_prize.remaining} disp.</div>` : "";
+                return `
+                    <div class="admin-machine-row">
+                        <span class="am-emoji">🎰</span>
+                        <div class="am-info">
+                            <div class="am-name">${p.name}</div>
+                            ${p.address ? `<div class="am-address">📍 ${p.address}</div>` : ""}
+                            ${prizeHtml}
+                        </div>
+                        <span class="am-status ${status}">${statusLabel(status)}</span>
+                    </div>
+                `;
+            }).join("");
+        }
+    } else {
+        machinesEl.innerHTML = '<div class="empty">Erro carregando maquinas.</div>';
+    }
+
+    // Wins recentes
+    const winsEl = $("#admin-wins");
+    if (galleryRes.status === "fulfilled") {
+        const items = galleryRes.value.items || [];
+        winsEl.innerHTML = items.length === 0 ? '<div class="empty">Nenhum premio entregue ainda.</div>' :
+            items.map(w => {
+                const emoji = RARITY_EMOJI[w.prize.rarity] || "🧸";
+                const photo = w.photo_url || w.prize.image_url;
+                const photoStyle = photo ? `background-image:url('${photo}')` : "";
+                return `
+                    <div class="gallery-card">
+                        <div class="photo" style="${photoStyle}">${photo ? "" : emoji}</div>
+                        <div class="winner-name">${w.user_display_name || "Anonimo"}<span class="rarity-pill ${w.prize.rarity}">${RARITY_LABEL[w.prize.rarity] || w.prize.rarity}</span></div>
+                        <div class="prize-name">${w.prize.name}</div>
+                        <div class="when">${fmtDate(w.won_at)} · ${w.machine.label}</div>
+                    </div>
+                `;
+            }).join("");
+    } else {
+        winsEl.innerHTML = '<div class="empty">Erro carregando wins.</div>';
+    }
+
+    // Modulos FreePix do catalog
+    const modulesEl = $("#admin-modules");
+    if (modulesRes.status === "fulfilled") {
+        const list = modulesRes.value.modules || modulesRes.value.items || modulesRes.value || [];
+        if (!Array.isArray(list) || list.length === 0) {
+            modulesEl.innerHTML = '<div class="empty">Lista de modulos indisponivel no momento.</div>';
+        } else {
+            modulesEl.innerHTML = list.map(mod => {
+                const key = mod.key || mod.module_key || mod.slug || "";
+                const meta = MODULE_LABELS[key] || { emoji: "🧩", name: mod.name || key };
+                const tagClass = (mod.status || mod.state || "available").toLowerCase();
+                const tagLabel = mod.status === "active" ? "Ativo" : mod.status === "beta" ? "Beta" : mod.status === "planned" ? "Planejado" : "Disponivel";
+                return `
+                    <div class="module-card ${mod.status === "active" ? "active" : ""}">
+                        <div>
+                            <h3>${meta.emoji} ${meta.name}</h3>
+                            <p>${mod.description || mod.summary || ""}</p>
+                        </div>
+                        <span class="module-tag ${tagClass}">${tagLabel}</span>
+                    </div>
+                `;
+            }).join("");
+        }
+    } else {
+        modulesEl.innerHTML = '<div class="empty">Catalog de modulos indisponivel.</div>';
+    }
+}
+
+// ============================================================
 // PWA — Service Worker + install prompt
 // ============================================================
 function registerServiceWorker() {
@@ -631,6 +825,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     // 3. PWA
     registerServiceWorker();
     setupInstallPrompt();
+    // 4. Detecta admin em background — mostra link "🛠️ Admin" no topbar se aplicavel
+    refreshAdminLink();
 });
 
 // Refresh stats na home a cada 30s

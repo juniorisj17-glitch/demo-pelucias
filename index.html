@@ -43,6 +43,7 @@
             <a href="#como-funciona" data-route="como-funciona">Como funciona</a>
         </nav>
         <div class="nav-actions" id="nav-actions">
+            <a href="#admin" class="btn btn-admin hidden" data-route="admin" id="nav-admin-link" title="Painel admin">🛠️ Admin</a>
             <a href="#login" class="btn btn-ghost" data-route="login">Entrar</a>
             <a href="#cadastro" class="btn btn-primary" data-route="cadastro">Cadastrar</a>
         </div>
@@ -337,6 +338,120 @@
             </div>
             <div class="logout-strip">
                 <button class="btn btn-ghost" id="btn-logout">Sair</button>
+            </div>
+        </section>
+
+        <!-- ADMIN -->
+        <section class="route hidden" id="route-admin">
+            <div class="admin-gate hidden" id="admin-gate-loading">
+                <span aria-hidden="true">⏳</span>
+                <p>Verificando acesso…</p>
+            </div>
+            <div class="admin-gate hidden" id="admin-gate-noauth">
+                <span aria-hidden="true">🔒</span>
+                <h2>Entre primeiro</h2>
+                <p>Pra acessar o painel admin voce precisa fazer login com uma conta autorizada.</p>
+                <a href="#login" data-route="login" class="btn btn-primary">Entrar</a>
+            </div>
+            <div class="admin-gate hidden" id="admin-gate-noaccess">
+                <span aria-hidden="true">⛔</span>
+                <h2>Sem permissao</h2>
+                <p>Sua conta nao e admin do tenant <strong>pelucias-demo</strong>. Se voce opera as maquinas, peca acesso a quem cuida do tenant.</p>
+                <a href="#home" data-route="home" class="btn btn-ghost">Voltar ao site</a>
+            </div>
+
+            <div class="admin-dashboard hidden" id="admin-dashboard">
+                <div class="page-head">
+                    <span class="eyebrow">🛠️ Admin · Clube das Gruas</span>
+                    <h1>Painel <span id="admin-greeting">do operador</span></h1>
+                    <p class="text-muted" id="admin-email"></p>
+                </div>
+
+                <div class="admin-kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-label">🎁 Premios entregues</span>
+                        <strong class="kpi-value" id="adm-kpi-total">—</strong>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">⭐ Raros</span>
+                        <strong class="kpi-value" id="adm-kpi-rare">—</strong>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">🔥 Ultimas 24h</span>
+                        <strong class="kpi-value" id="adm-kpi-24h">—</strong>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">🎰 Maquinas ativas</span>
+                        <strong class="kpi-value" id="adm-kpi-machines">—</strong>
+                    </div>
+                </div>
+
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h2>🎰 Maquinas e status</h2>
+                        <a href="#mapa" data-route="mapa" class="btn btn-ghost btn-sm">Ver no mapa →</a>
+                    </div>
+                    <div class="admin-machines" id="admin-machines">
+                        <div class="loading">carregando…</div>
+                    </div>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h2>✨ Ultimos premios entregues</h2>
+                        <a href="#galeria" data-route="galeria" class="btn btn-ghost btn-sm">Ver galeria →</a>
+                    </div>
+                    <div class="admin-wins gallery-grid" id="admin-wins">
+                        <div class="loading">carregando…</div>
+                    </div>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h2>🧩 Modulos FreePix disponiveis</h2>
+                    </div>
+                    <div class="admin-modules" id="admin-modules">
+                        <div class="loading">carregando…</div>
+                    </div>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h2>🚧 Em breve · depende de backend novo</h2>
+                    </div>
+                    <div class="admin-roadmap">
+                        <div class="roadmap-card">
+                            <h3>💰 Controle financeiro por origem</h3>
+                            <p>Entradas por PIX / cartao / moeda / dinheiro — cada pulso lido pela ESP32 vira <code>WalletEntry</code> com origem identificada.</p>
+                            <span class="roadmap-tag">Sessao 8 FreePix</span>
+                        </div>
+                        <div class="roadmap-card">
+                            <h3>📡 Comandos remotos</h3>
+                            <p>Dar credito, ligar/desligar maquina, reset, restock automatico via MQTT.</p>
+                            <span class="roadmap-tag">Sessao 8 FreePix</span>
+                        </div>
+                        <div class="roadmap-card">
+                            <h3>💼 Caixa fisico</h3>
+                            <p>Contagem de moedas + cedulas, reconciliacao com pulso debitado, alerta de divergencia.</p>
+                            <span class="roadmap-tag">Backend novo</span>
+                        </div>
+                        <div class="roadmap-card">
+                            <h3>🕐 Horarios programados</h3>
+                            <p>Horario de funcionamento por maquina, auto-off fora do horario.</p>
+                            <span class="roadmap-tag">Backend novo</span>
+                        </div>
+                        <div class="roadmap-card">
+                            <h3>👥 Operadores delegados</h3>
+                            <p>10 maquinas em 4 lojas: delegar usuarios pra operar maquinas especificas.</p>
+                            <span class="roadmap-tag">Backend novo</span>
+                        </div>
+                        <div class="roadmap-card">
+                            <h3>📦 Estoque por maquina</h3>
+                            <p>Restock, consumo, alerta de baixo estoque por urso. Endpoint existe, falta proxy admin via JWT.</p>
+                            <span class="roadmap-tag">Wrapper backend</span>
+                        </div>
+                    </div>
+                </section>
             </div>
         </section>
 
